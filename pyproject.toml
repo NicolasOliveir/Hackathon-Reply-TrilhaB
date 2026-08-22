@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rivexx-autonomous-squad"
+version = "0.1.0"
+description = "Control plane for the Rivexx autonomous AI squad"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+contracts = [
+  "jsonschema>=4.19,<5",
+  "PyYAML>=6,<7"
+]
+
+[tool.setuptools]
+packages = []

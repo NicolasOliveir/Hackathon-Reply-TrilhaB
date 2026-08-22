@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/common.schema.json",
+  "title": "Common contract definitions",
+  "$defs": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "contractVersion": {
+      "type": "string",
+      "const": "1.0.0"
+    },
+    "runState": {
+      "type": "string",
+      "enum": [
+        "RECEIVED",
+        "WORKER_QUEUED",
+        "WORKER_RUNNING",
+        "COMPLETED",
+        "FAILED",
+        "CANCELED"
+      ]
+    },
+    "taskState": {
+      "type": "string",
+      "enum": [
+        "PENDING",
+        "RUNNING",
+        "SUCCEEDED",
+        "FAILED",
+        "TIMED_OUT",
+        "CANCELED"
+      ]
+    },
+    "agentRole": {
+      "type": "string",
+      "enum": ["fake", "po", "dev", "qa", "runner"]
+    },
+    "eventActor": {
+      "type": "string",
+      "enum": ["system", "fake_worker", "po", "dev", "qa", "runner"]
+    },
+    "eventType": {
+      "type": "string",
+      "enum": [
+        "RUN_CREATED",
+        "BRIEFING_RECEIVED",
+        "TASK_QUEUED",
+        "AGENT_STARTED",
+        "FAKE_WORKER_COMPLETED",
+        "AGENT_FAILED",
+        "RUN_COMPLETED",
+        "RUN_FAILED",
+        "RUN_CANCELED"
+      ]
+    },
+    "scope": {
+      "type": "string",
+      "enum": [
+        "context:read",
+        "model:invoke",
+        "output:write",
+        "heartbeat:write",
+        "artifact:write"
+      ]
+    },
+    "uri": {
+      "type": "string",
+      "format": "uri"
+    }
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/create-run-request.schema.json",
+  "title": "CreateRunRequest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "briefing"],
+  "properties": {
+    "contract_version": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"
+    },
+    "briefing": {
+      "type": "string",
+      "minLength": 20,
+      "maxLength": 100000
+    },
+    "client_reference": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    }
+  }
+}

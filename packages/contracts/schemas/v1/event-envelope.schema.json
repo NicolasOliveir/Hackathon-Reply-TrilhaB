@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/event-envelope.schema.json",
+  "title": "EventEnvelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "event_id",
+    "sequence",
+    "run_id",
+    "ts",
+    "actor",
+    "type",
+    "correlation_id",
+    "causation_id",
+    "task_id",
+    "payload",
+    "meta"
+  ],
+  "properties": {
+    "contract_version": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"
+    },
+    "event_id": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "run_id": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"
+    },
+    "ts": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/timestamp"
+    },
+    "actor": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/eventActor"
+    },
+    "type": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/eventType"
+    },
+    "correlation_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120
+    },
+    "causation_id": {
+      "oneOf": [
+        {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"},
+        {"type": "null"}
+      ]
+    },
+    "task_id": {
+      "oneOf": [
+        {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"},
+        {"type": "null"}
+      ]
+    },
+    "payload": {
+      "type": "object"
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model",
+        "tokens_in",
+        "tokens_out",
+        "latency_ms",
+        "container_id"
+      ],
+      "properties": {
+        "model": {
+          "type": ["string", "null"]
+        },
+        "tokens_in": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "tokens_out": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "latency_ms": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "container_id": {
+          "type": ["string", "null"]
+        }
+      }
+    }
+  }
+}

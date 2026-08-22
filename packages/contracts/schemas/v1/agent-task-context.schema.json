@@ -1,0 +1,71 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/agent-task-context.schema.json",
+  "title": "AgentTaskContext",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "task_id",
+    "run_id",
+    "role",
+    "issued_at",
+    "expires_at",
+    "scopes",
+    "context_manifest",
+    "input"
+  ],
+  "properties": {
+    "contract_version": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"
+    },
+    "task_id": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"
+    },
+    "run_id": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"
+    },
+    "role": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/agentRole"
+    },
+    "issued_at": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/timestamp"
+    },
+    "expires_at": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/timestamp"
+    },
+    "scopes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/scope"
+      }
+    },
+    "context_manifest": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_id", "source_type", "hash"],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "source_type": {
+            "type": "string",
+            "enum": ["briefing", "story", "delivery", "finding", "contract"]
+          },
+          "hash": {
+            "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"
+          }
+        }
+      }
+    },
+    "input": {
+      "type": "object"
+    }
+  }
+}
