@@ -250,7 +250,7 @@ def test_codex_schema_removes_unsupported_unique_items_without_mutating_source()
     normalized = _codex_output_schema(source)
 
     assert "uniqueItems" not in normalized["properties"]["items"]
-    assert normalized["properties"]["items"]["items"] == {}
+    assert normalized["properties"]["items"]["items"] == {"type": "string"}
     assert source["properties"]["items"]["uniqueItems"] is True
 
 

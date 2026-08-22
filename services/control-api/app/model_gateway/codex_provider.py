@@ -188,7 +188,7 @@ def _codex_output_schema(schema: dict) -> dict:
             if isinstance(reference, str) and reference.startswith(("http://", "https://")):
                 # O CLI recusa referências remotas no response_format. A API
                 # ainda valida a resposta contra o schema canônico completo.
-                return {}
+                return {"type": "string"}
             return {
                 key: normalize(item)
                 for key, item in value.items()
