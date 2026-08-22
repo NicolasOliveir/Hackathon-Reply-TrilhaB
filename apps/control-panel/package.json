@@ -11,6 +11,6 @@
     "lint": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": { "@vitejs/plugin-react": "latest", "vite": "latest", "typescript": "latest", "react": "latest", "react-dom": "latest" },
-  "devDependencies": { "vitest": "latest", "jsdom": "latest", "@testing-library/react": "latest", "@testing-library/jest-dom": "latest", "@types/react": "latest", "@types/react-dom": "latest" }
+  "dependencies": { "@vitejs/plugin-react": "6.1.0", "vite": "8.2.2", "typescript": "7.0.2", "react": "19.2.8", "react-dom": "19.2.8" },
+  "devDependencies": { "vitest": "4.1.11", "jsdom": "30.0.1", "@testing-library/react": "16.3.2", "@testing-library/jest-dom": "6.9.1", "@types/react": "19.2.14", "@types/react-dom": "19.2.3" }
 }
