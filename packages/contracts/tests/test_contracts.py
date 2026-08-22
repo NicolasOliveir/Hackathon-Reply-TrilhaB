@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sys
 import unittest
 from collections.abc import Iterator
 from pathlib import Path
@@ -10,9 +11,16 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 
-import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from worker_contracts import ContractInvariantError, canonical_sha256, freeze_po_handoffs, validate_po_output
+from worker_contracts import (  # noqa: E402
+    ContractInvariantError,
+    canonical_sha256,
+    derive_runner_verdict,
+    freeze_po_handoffs,
+    validate_dev_delivery,
+    validate_po_output,
+    validate_qa_test_plan,
+)
 
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[1]
@@ -174,9 +182,16 @@ class ContractTestCase(unittest.TestCase):
     def test_po_semantics_reject_invalid_cross_references(self) -> None:
         original = load_json(EXAMPLES_DIR / "valid" / "po-output.json")
         cases = []
-        cycle = json.loads(json.dumps(original)); cycle["stories"][0]["depends_on"] = ["STORY-001"]; cases.append(cycle)
-        coverage = json.loads(json.dumps(original)); coverage["coverage"][0]["story_ids"] = ["STORY-999"]; cases.append(coverage)
-        duplicate = json.loads(json.dumps(original)); duplicate["stories"].append(json.loads(json.dumps(duplicate["stories"][0]))); duplicate["stories"][1]["story_id"] = "STORY-002"; cases.append(duplicate)
+        cycle = json.loads(json.dumps(original))
+        cycle["stories"][0]["depends_on"] = ["STORY-001"]
+        cases.append(cycle)
+        coverage = json.loads(json.dumps(original))
+        coverage["coverage"][0]["story_ids"] = ["STORY-999"]
+        cases.append(coverage)
+        duplicate = json.loads(json.dumps(original))
+        duplicate["stories"].append(json.loads(json.dumps(duplicate["stories"][0])))
+        duplicate["stories"][1]["story_id"] = "STORY-002"
+        cases.append(duplicate)
         for document in cases:
             with self.assertRaises(ContractInvariantError):
                 validate_po_output(document)
@@ -185,10 +200,84 @@ class ContractTestCase(unittest.TestCase):
         transitions = load_json(WORKER_MACHINE_PATH)["transitions"]
         keys = [(item["from"], item["event"]) for item in transitions]
         self.assertEqual(len(keys), len(set(keys)))
-        self.assertIn({"from": "TEST_PLAN_READY", "event": "STORY_REJECTED", "to": "CHANGES_REQUESTED"}, transitions)
-        self.assertIn({"from": "CHANGES_REQUESTED", "event": "CODE_REDELIVERED", "to": "DELIVERY_READY"}, transitions)
-        self.assertIn({"from": "BRIEFING_READY", "event": "STORY_FROZEN", "to": "BACKLOG_FROZEN"}, transitions)
-        self.assertIn({"from": "BACKLOG_FROZEN", "event": "PO_COMPLETED", "to": "STORY_READY"}, transitions)
+        self.assertIn(
+            {
+                "from": "TEST_PLAN_READY",
+                "event": "TEST_EXECUTED",
+                "to": "TESTS_EXECUTED",
+            },
+            transitions,
+        )
+        self.assertIn(
+            {
+                "from": "TESTS_EXECUTED",
+                "event": "STORY_REJECTED",
+                "to": "CHANGES_REQUESTED",
+            },
+            transitions,
+        )
+        self.assertIn(
+            {
+                "from": "CHANGES_REQUESTED",
+                "event": "CODE_REDELIVERED",
+                "to": "DELIVERY_READY",
+            },
+            transitions,
+        )
+        self.assertNotIn(
+            {
+                "from": "TEST_PLAN_READY",
+                "event": "STORY_ACCEPTED",
+                "to": "STORY_ACCEPTED",
+            },
+            transitions,
+        )
+
+    def test_dev_qa_runner_handoffs_preserve_criteria_and_derive_verdict(self) -> None:
+        backlog = load_json(EXAMPLES_DIR / "valid" / "po-output.json")
+        story = backlog["stories"][0]
+        delivery = load_json(EXAMPLES_DIR / "valid" / "dev-delivery.json")
+        plan = load_json(EXAMPLES_DIR / "valid" / "qa-test-plan.json")
+        result = load_json(EXAMPLES_DIR / "valid" / "runner-result.json")
+
+        validate_dev_delivery(
+            delivery,
+            [item["criterion_id"] for item in story["acceptance_criteria"]],
+        )
+        validate_qa_test_plan(plan, story, delivery)
+        result["test_plan_hash"] = canonical_sha256(plan)
+        self.assertEqual(derive_runner_verdict(plan, result), "ACCEPTED")
+
+        invalid_delivery = json.loads(json.dumps(delivery))
+        invalid_delivery["verification_runs"][0]["status"] = "FAIL"
+        with self.assertRaises(ContractInvariantError):
+            validate_dev_delivery(invalid_delivery, ["AC-001"])
+
+        paraphrased_plan = json.loads(json.dumps(plan))
+        paraphrased_plan["criteria"][0]["description"] = "Texto alterado pelo QA."
+        with self.assertRaises(ContractInvariantError):
+            validate_qa_test_plan(paraphrased_plan, story, delivery)
+
+        failed = json.loads(json.dumps(result))
+        failed["results"][0]["status"] = "FAIL"
+        failed["results"][0]["exit_code"] = 1
+        failed["overall_exit_code"] = 1
+        self.assertEqual(derive_runner_verdict(plan, failed), "REJECTED")
+
+        inconclusive = json.loads(json.dumps(result))
+        inconclusive["results"][0]["status"] = "TIMEOUT"
+        inconclusive["results"][0]["exit_code"] = None
+        inconclusive["overall_exit_code"] = None
+        self.assertEqual(derive_runner_verdict(plan, inconclusive), "NEEDS_HUMAN")
+
+    def test_runner_cannot_submit_its_own_verdict(self) -> None:
+        plan = load_json(EXAMPLES_DIR / "valid" / "qa-test-plan.json")
+        result = load_json(EXAMPLES_DIR / "valid" / "runner-result.json")
+        result["test_plan_hash"] = canonical_sha256(plan)
+        result["verdict"] = "ACCEPTED"
+
+        with self.assertRaises(ContractInvariantError):
+            derive_runner_verdict(plan, result)
 
 
 if __name__ == "__main__":

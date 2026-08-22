@@ -2,8 +2,39 @@
 #   filename:  qa-test-plan.schema.json
 
 from __future__ import annotations
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 from . import common_schema
+from enum import StrEnum
+
+
+class Criterion(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    criterion_id: common_schema.CriterionId
+    order: int = Field(..., ge=1)
+    description: common_schema.NonEmptyText
+
+
+class TestType(StrEnum):
+    unit = 'unit'
+    integration = 'integration'
+    contract = 'contract'
+    api = 'api'
+    browser = 'browser'
+    mobile = 'mobile'
+    accessibility = 'accessibility'
+    security = 'security'
+
+
+class EvidenceType(StrEnum):
+    stdout = 'stdout'
+    junit = 'junit'
+    coverage = 'coverage'
+    screenshot = 'screenshot'
+    trace = 'trace'
+    axe = 'axe'
+    audit = 'audit'
 
 
 class Case(BaseModel):
@@ -13,8 +44,32 @@ class Case(BaseModel):
     case_id: str = Field(..., pattern='^CASE-[0-9]{3,}$')
     criterion_id: common_schema.CriterionId
     gate: str = Field(..., pattern='^G[0-9]$')
-    command: list[str] = Field(..., min_length=1)
+    title: str = Field(..., max_length=200, min_length=1)
+    test_type: TestType
+    execution: common_schema.ExecutionSpec
+    expected: common_schema.NonEmptyText
+    evidence_types: list[EvidenceType] = Field(..., min_length=1)
     required: bool
+
+
+class ManifestPath(RootModel[str]):
+    root: str = Field(..., max_length=500, min_length=1)
+
+
+class RunnerProfile(StrEnum):
+    python = 'python'
+    node = 'node'
+    fullstack = 'fullstack'
+    generic = 'generic'
+
+
+class Environment(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    rebuild_on_manifest_change: bool
+    manifest_paths: list[ManifestPath]
+    runner_profile: RunnerProfile
 
 
 class QaTestPlan(BaseModel):
@@ -25,5 +80,9 @@ class QaTestPlan(BaseModel):
     run_id: common_schema.Uuid
     story_id: common_schema.StoryId
     story_hash: common_schema.Sha256
+    revision: int = Field(..., ge=1)
     delivery_manifest_hash: common_schema.Sha256
+    criteria: list[Criterion] = Field(..., min_length=1)
     cases: list[Case] = Field(..., min_length=1)
+    test_artifacts: list[common_schema.ArtifactRef]
+    environment: Environment

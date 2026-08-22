@@ -54,7 +54,7 @@ Os handoffs reais usam os seguintes documentos imutáveis:
 - `po-dev-handoff`: uma story pronta, o hash do backlog e os hashes das instruções;
 - `dev-delivery`: commit, manifest, verificações e artefatos entregues;
 - `qa-test-plan`: casos executáveis ligados aos critérios de aceite;
-- `runner-result`: resultados e veredito derivados pelo runner não-LLM.
+- `runner-result`: resultados observados pelo runner não-LLM; a API deriva o veredito.
 
 O servidor deve validar o JSON Schema e depois as invariantes de `worker_contracts.py`. O hash é
 SHA-256 do JSON UTF-8 canônico (`sort_keys`, sem espaços e sem NaN), prefixado por `sha256:`. Só
@@ -63,5 +63,6 @@ validados antes de emitir `STORY_FROZEN`. Depois que todos os handoffs foram per
 emite `PO_COMPLETED`; somente então a máquina libera `STORY_READY` para o Dev.
 
 `state-machine/worker-flow-v1.json` congela o caminho PO -> Dev -> QA -> runner, incluindo a volta
-determinística de `STORY_REJECTED` para `CODE_REDELIVERED`. Eventos grandes carregam apenas refs
-de artefatos; conteúdo e evidências são conferidos pelos hashes dos envelopes.
+determinística de `STORY_REJECTED` para `CODE_REDELIVERED`. `TEST_EXECUTED` é obrigatório antes
+de qualquer aceite ou reprovação. Eventos grandes carregam apenas refs de artefatos; conteúdo e
+evidências são conferidos pelos hashes dos envelopes.
