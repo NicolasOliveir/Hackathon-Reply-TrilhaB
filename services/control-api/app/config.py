@@ -21,6 +21,7 @@ DEFAULT_TASK_MAX_ATTEMPTS = 3
 # Nomes espelhados de infra/compose.yaml. O projeto Compose se chama
 # `rivexx-squad`, e o Docker prefixa o nome da rede com ele.
 DEFAULT_FAKE_WORKER_IMAGE = "rivexx/fake-worker:local"
+DEFAULT_PO_WORKER_IMAGE = "reply/po-worker:local"
 DEFAULT_AGENT_NETWORK = "rivexx-squad_agent_net"
 
 BASE_SCOPES = ("context:read", "output:write", "heartbeat:write")
@@ -71,6 +72,7 @@ class Settings:
     # Runtime e despacho (I1-005)
     runtime_backend: str
     fake_worker_image: str
+    po_worker_image: str
     allowed_images: frozenset[str]
     agent_network: str
     internal_base_url: str
@@ -160,6 +162,8 @@ def get_settings() -> Settings:
         if item.strip()
     }
     allowed.add(fake_worker_image)
+    po_worker_image = os.getenv("PO_WORKER_IMAGE", DEFAULT_PO_WORKER_IMAGE)
+    allowed.add(po_worker_image)
 
     model_provider = os.getenv("MODEL_PROVIDER", "echo").lower()
     initial_task_role = os.getenv(
@@ -185,6 +189,7 @@ def get_settings() -> Settings:
         sql_echo=os.getenv("SQL_ECHO", "").lower() in {"1", "true", "yes"},
         runtime_backend=os.getenv("RUNTIME_BACKEND", "docker").lower(),
         fake_worker_image=fake_worker_image,
+        po_worker_image=po_worker_image,
         allowed_images=frozenset(allowed),
         agent_network=os.getenv("AGENT_NETWORK", DEFAULT_AGENT_NETWORK),
         # O worker fala com a API pelo nome do serviço na agent_net, nunca pelo

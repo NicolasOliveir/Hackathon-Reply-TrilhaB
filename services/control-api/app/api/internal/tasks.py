@@ -116,13 +116,29 @@ async def get_task_context(
                     "source_type": "briefing",
                     "hash": run.briefing_hash,
                 }
-            ] if task.role != "fake" else [],
+            ] if task.role in {"po", "llm"} else [],
             "input": (
                 {"echo": "first-distributed-slice"}
                 if task.role == "fake"
-                else {"briefing": run.briefing}
+                else ({"briefing": run.briefing} if task.role in {"po", "llm"} else (task.input_payload or {}))
             ),
         }
+
+
+@router.post("/{task_id}/heartbeat", status_code=status.HTTP_200_OK, response_model=None)
+async def heartbeat(
+    task_id: uuid.UUID,
+    settings: Annotated[Settings, Depends(get_settings)],
+    authorization: Annotated[str | None, Header()] = None,
+) -> dict[str, Any]:
+    """Renova a lease sem expor tempo de banco ou alterar o event log."""
+    async with transaction() as session:
+        task = await _authenticate(session, task_id, authorization)
+        if "heartbeat:write" not in settings.scopes_for_role(task.role):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="papel sem heartbeat:write")
+        task.locked_at = utc_now()
+        task.updated_at = utc_now()
+        return {"accepted": True, "expires_at": (task.locked_at + timedelta(seconds=task.timeout_seconds)).isoformat().replace("+00:00", "Z")}
 
 
 @router.post(
