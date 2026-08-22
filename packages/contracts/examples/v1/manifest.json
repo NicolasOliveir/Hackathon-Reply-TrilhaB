@@ -60,6 +60,48 @@
       "schema": "https://reply.local/contracts/v1/fake-worker-output.schema.json",
       "document": "invalid/fake-worker-output-status.json",
       "valid": false
+    },
+    {
+      "name": "PO output",
+      "schema": "https://reply.local/contracts/v1/po-output.schema.json",
+      "document": "valid/po-output.json",
+      "valid": true
+    },
+    {
+      "name": "PO to Dev handoff",
+      "schema": "https://reply.local/contracts/v1/po-dev-handoff.schema.json",
+      "document": "valid/po-dev-handoff.json",
+      "valid": true
+    },
+    {
+      "name": "Dev delivery",
+      "schema": "https://reply.local/contracts/v1/dev-delivery.schema.json",
+      "document": "valid/dev-delivery.json",
+      "valid": true
+    },
+    {
+      "name": "QA test plan",
+      "schema": "https://reply.local/contracts/v1/qa-test-plan.schema.json",
+      "document": "valid/qa-test-plan.json",
+      "valid": true
+    },
+    {
+      "name": "runner result",
+      "schema": "https://reply.local/contracts/v1/runner-result.schema.json",
+      "document": "valid/runner-result.json",
+      "valid": true
+    },
+    {
+      "name": "PO output rejects story without criteria",
+      "schema": "https://reply.local/contracts/v1/po-output.schema.json",
+      "document": "invalid/po-output-no-criteria.json",
+      "valid": false
+    },
+    {
+      "name": "runner rejects agent-created verdict",
+      "schema": "https://reply.local/contracts/v1/runner-result.schema.json",
+      "document": "invalid/runner-result-agent-verdict.json",
+      "valid": false
     }
   ]
 }

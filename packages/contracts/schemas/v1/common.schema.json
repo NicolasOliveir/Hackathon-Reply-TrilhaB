@@ -57,6 +57,18 @@
         "TASK_QUEUED",
         "AGENT_STARTED",
         "FAKE_WORKER_COMPLETED",
+        "STORY_FROZEN",
+        "DEV_TASK_PLAN_CREATED",
+        "ADR_RECORDED",
+        "TOOL_EXECUTED",
+        "CODE_DELIVERED",
+        "CODE_REDELIVERED",
+        "TEST_PLAN_CREATED",
+        "TEST_EXECUTED",
+        "FINDING_RECORDED",
+        "STORY_ACCEPTED",
+        "STORY_REJECTED",
+        "NEEDS_HUMAN",
         "AGENT_FAILED",
         "RUN_COMPLETED",
         "RUN_FAILED",
@@ -76,6 +88,32 @@
     "uri": {
       "type": "string",
       "format": "uri"
+    },
+    "nonEmptyText": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 4000
+    },
+    "storyId": {
+      "type": "string",
+      "pattern": "^STORY-[0-9]{3,}$"
+    },
+    "criterionId": {
+      "type": "string",
+      "pattern": "^AC-[0-9]{3,}$"
+    },
+    "artifactRef": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_id", "kind", "uri", "media_type", "size_bytes", "sha256"],
+      "properties": {
+        "artifact_id": {"$ref": "#/$defs/uuid"},
+        "kind": {"type": "string", "minLength": 1, "maxLength": 80},
+        "uri": {"$ref": "#/$defs/uri"},
+        "media_type": {"type": "string", "minLength": 3, "maxLength": 120},
+        "size_bytes": {"type": "integer", "minimum": 0},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
     }
   }
 }

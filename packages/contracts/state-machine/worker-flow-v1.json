@@ -1,0 +1,18 @@
+{
+  "contract_version": "1.0.0",
+  "initial_state": "BRIEFING_READY",
+  "terminal_states": ["STORY_ACCEPTED", "NEEDS_HUMAN"],
+  "transitions": [
+    {"from": "BRIEFING_READY", "event": "STORY_FROZEN", "to": "STORY_READY"},
+    {"from": "STORY_READY", "event": "CODE_DELIVERED", "to": "DELIVERY_READY"},
+    {"from": "DELIVERY_READY", "event": "TEST_PLAN_CREATED", "to": "TEST_PLAN_READY"},
+    {"from": "TEST_PLAN_READY", "event": "STORY_ACCEPTED", "to": "STORY_ACCEPTED"},
+    {"from": "TEST_PLAN_READY", "event": "STORY_REJECTED", "to": "CHANGES_REQUESTED"},
+    {"from": "CHANGES_REQUESTED", "event": "CODE_REDELIVERED", "to": "DELIVERY_READY"},
+    {"from": "BRIEFING_READY", "event": "NEEDS_HUMAN", "to": "NEEDS_HUMAN"},
+    {"from": "STORY_READY", "event": "NEEDS_HUMAN", "to": "NEEDS_HUMAN"},
+    {"from": "DELIVERY_READY", "event": "NEEDS_HUMAN", "to": "NEEDS_HUMAN"},
+    {"from": "TEST_PLAN_READY", "event": "NEEDS_HUMAN", "to": "NEEDS_HUMAN"},
+    {"from": "CHANGES_REQUESTED", "event": "NEEDS_HUMAN", "to": "NEEDS_HUMAN"}
+  ]
+}

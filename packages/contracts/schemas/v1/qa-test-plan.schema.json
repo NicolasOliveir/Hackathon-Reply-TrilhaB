@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/qa-test-plan.schema.json",
+  "title": "QaTestPlan",
+  "type": "object", "additionalProperties": false,
+  "required": ["contract_version", "run_id", "story_id", "story_hash", "delivery_manifest_hash", "cases"],
+  "properties": {
+    "contract_version": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"},
+    "run_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"},
+    "story_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/storyId"},
+    "story_hash": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"},
+    "delivery_manifest_hash": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"},
+    "cases": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["case_id", "criterion_id", "gate", "command", "required"], "properties": {"case_id": {"type": "string", "pattern": "^CASE-[0-9]{3,}$"}, "criterion_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/criterionId"}, "gate": {"type": "string", "pattern": "^G[0-9]$"}, "command": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "required": {"type": "boolean"}}}}
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/dev-delivery.schema.json",
+  "title": "DevDelivery",
+  "type": "object", "additionalProperties": false,
+  "required": ["contract_version", "run_id", "story_id", "story_hash", "revision", "base_hash", "commit_hash", "manifest_hash", "criterion_verifications", "artifacts", "status"],
+  "properties": {
+    "contract_version": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"},
+    "run_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"},
+    "story_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/storyId"},
+    "story_hash": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"},
+    "revision": {"type": "integer", "minimum": 1},
+    "base_hash": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"},
+    "commit_hash": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
+    "manifest_hash": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"},
+    "criterion_verifications": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["criterion_id", "command", "exit_code", "status"], "properties": {"criterion_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/criterionId"}, "command": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "exit_code": {"type": "integer"}, "status": {"type": "string", "enum": ["PASS", "FAIL", "NOT_RUN"]}}}},
+    "artifacts": {"type": "array", "items": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/artifactRef"}},
+    "status": {"type": "string", "enum": ["READY_FOR_QA", "FAILED", "NEEDS_HUMAN"]}
+  }
+}
