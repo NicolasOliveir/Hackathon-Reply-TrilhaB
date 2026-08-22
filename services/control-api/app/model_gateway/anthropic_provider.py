@@ -34,11 +34,26 @@ _JSON_INSTRUCTION = (
 class AnthropicProvider(ModelProvider):
     name = "anthropic"
 
-    def __init__(self, client=None, default_model: str = DEFAULT_MODEL) -> None:
+    def __init__(
+        self,
+        client=None,
+        default_model: str = DEFAULT_MODEL,
+        profile: str | None = None,
+    ) -> None:
         self._client = client
         self._default_model = default_model
+        self._profile = profile
 
     def _ensure_client(self):
+        """Constrói o cliente uma vez.
+
+        Sem `profile`, o SDK resolve na ordem dele: `ANTHROPIC_API_KEY`,
+        `ANTHROPIC_AUTH_TOKEN`, perfil de `ant auth login`, federação.
+
+        **Com plano (assinatura) não existe chave a passar** — a credencial vem
+        do perfil, e o construtor sem argumento já faz isso. `profile` só é
+        necessário para escolher um perfil nomeado entre vários.
+        """
         if self._client is not None:
             return self._client
         try:
@@ -47,7 +62,9 @@ class AnthropicProvider(ModelProvider):
             raise ProviderNotConfigured(
                 "SDK `anthropic` não instalado; use o extra control-api."
             ) from exc
-        self._client = AsyncAnthropic()
+        self._client = (
+            AsyncAnthropic(profile=self._profile) if self._profile else AsyncAnthropic()
+        )
         return self._client
 
     async def invoke(self, request: ModelRequest) -> ModelResponse:

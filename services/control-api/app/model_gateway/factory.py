@@ -27,7 +27,8 @@ def build_providers(settings: Settings) -> dict[str, ModelProvider]:
             from .anthropic_provider import AnthropicProvider
 
             providers["anthropic"] = AnthropicProvider(
-                default_model=settings.anthropic_default_model
+                default_model=settings.anthropic_default_model,
+                profile=settings.anthropic_profile,
             )
         elif name == "codex":
             from .codex_provider import CodexProvider
@@ -35,6 +36,7 @@ def build_providers(settings: Settings) -> dict[str, ModelProvider]:
             providers["codex"] = CodexProvider(
                 binary=settings.codex_binary,
                 default_model=settings.codex_default_model,
+                codex_home=settings.codex_home,
             )
         else:
             logger.warning("provedor desconhecido em MODEL_PROVIDERS: %s", name)

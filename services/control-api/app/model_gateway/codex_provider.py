@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import shutil
 import tempfile
 import time
@@ -43,10 +44,15 @@ class CodexProvider(ModelProvider):
         binary: str = DEFAULT_BINARY,
         default_model: str = DEFAULT_MODEL,
         working_directory: str | None = None,
+        codex_home: str | None = None,
     ) -> None:
         self._binary = binary
         self._default_model = default_model
         self._working_directory = working_directory
+        # Aponta o CLI para o diretorio de sessao montado no container. Sem
+        # isto o CLI procura em ~/.codex do usuario do processo, que dentro do
+        # container nao e o mesmo do host.
+        self._codex_home = codex_home
 
     def _resolve_binary(self) -> str:
         resolved = shutil.which(self._binary)
@@ -126,10 +132,15 @@ class CodexProvider(ModelProvider):
     async def _run(
         self, binary: str, args: list[str], timeout_seconds: int
     ) -> tuple[str, str, int | None, bool]:
+        environment = dict(os.environ)
+        if self._codex_home:
+            environment["CODEX_HOME"] = self._codex_home
+
         process = await asyncio.create_subprocess_exec(
             binary,
             *args,
             cwd=self._working_directory,
+            env=environment,
             stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

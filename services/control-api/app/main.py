@@ -17,6 +17,7 @@ from .api.internal.tasks import router as internal_tasks_router
 from .api.runs.router import router as runs_router
 from .config import CONTRACT_VERSION, get_settings
 from .db import dispose_engine, init_engine
+from .model_gateway.credentials import describe
 from .orchestration.loop import scheduler_task
 
 
@@ -44,6 +45,23 @@ def create_app() -> FastAPI:
     @app.get("/health", tags=["ops"])
     async def health() -> dict[str, str]:
         return {"status": "ok", "contract_version": CONTRACT_VERSION}
+
+    @app.get("/health/providers", tags=["ops"])
+    async def provider_health() -> dict:
+        """Diagnostico de credencial dos provedores.
+
+        Com plano em vez de chave, a falha tipica nao e 401: e perfil nao
+        montado, nao gravavel ou com permissao aberta demais. Descobrir isso no
+        meio da demo e tarde. Nenhum valor de credencial e devolvido.
+        """
+        settings = get_settings()
+        statuses = describe(
+            list(settings.model_providers), codex_binary=settings.codex_binary
+        )
+        return {
+            "selected": settings.model_provider,
+            "providers": [status.as_dict() for status in statuses],
+        }
 
     return app
 

@@ -182,6 +182,44 @@ O agregado por tarefa entra no `meta` do evento de conclusão, que é o campo qu
 o `EventEnvelope` já reserva para `model`, `tokens_in`, `tokens_out` e
 `latency_ms`.
 
+### Autenticação por plano (assinatura), sem chave de API
+
+Funciona, e **o código não muda** — `AsyncAnthropic()` sem argumento já resolve
+o perfil de `ant auth login`. O que muda é a infraestrutura, por três fatos
+verificados no SDK `anthropic` 1.0.0:
+
+| Fato | Onde | Consequência |
+|---|---|---|
+| Token OAuth tem TTL curto e o SDK renova sozinho | `lib/credentials/_constants.py` (`ADVISORY_REFRESH_SECONDS = 120`) | a credencial não é estática |
+| No refresh ele **grava de volta** (`mkstemp` + `os.replace`) | `lib/credentials/_providers.py:470-480` | o diretório precisa ser **gravável** |
+| **Recusa** arquivo group-readable, pedindo `chmod 600` | `lib/credentials/_providers.py:388` | permissão precisa ser `0600` no host |
+
+O `control-api` está `read_only: true` no `infra/compose.yaml`. Um mount
+`:ro` do perfil funciona por alguns minutos e falha quando o token expira — no
+meio da demo. O overlay resolve:
+
+```bash
+ant auth login                       # ou: codex login
+chmod 600 ~/.config/anthropic/configs/*.json
+
+docker compose -f infra/compose.yaml \
+               -f services/control-api/docker-compose.plan-auth.yml up
+```
+
+Verifique **antes** da demo:
+
+```bash
+curl -s localhost:8000/health/providers | python -m json.tool
+```
+
+Ele diz qual fonte cada provedor usaria, se está pronta e avisa sobre diretório
+não gravável ou permissão aberta demais — sem devolver valor de credencial
+nenhum.
+
+Para o provedor `codex` há um requisito extra: o binário precisa estar **na
+imagem** do `control-api`. Ele não é pacote Python, então não entra pelo
+`pyproject.toml` — é uma linha no Dockerfile, que pertence à `I1-002`.
+
 ### Escopo `model:invoke`
 
 Concedido por papel em `ROLE_SCOPES` (`app/config.py`), não por padrão. O papel

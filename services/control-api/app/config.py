@@ -86,6 +86,8 @@ class Settings:
     anthropic_default_model: str
     codex_binary: str
     codex_default_model: str
+    anthropic_profile: str | None
+    codex_home: str | None
 
     @property
     def state_machine_path(self) -> Path:
@@ -193,4 +195,6 @@ def get_settings() -> Settings:
         ),
         codex_binary=os.getenv("CODEX_BINARY", "codex"),
         codex_default_model=os.getenv("CODEX_DEFAULT_MODEL", "gpt-5.6-terra"),
+        anthropic_profile=os.getenv("ANTHROPIC_PROFILE") or None,
+        codex_home=os.getenv("CODEX_HOME") or None,
     )
