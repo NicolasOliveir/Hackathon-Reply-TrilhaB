@@ -184,6 +184,32 @@ async def _awaited(value):
     return value
 
 
+async def test_missing_credential_says_what_to_configure():
+    """Regressão: o SDK levanta `TypeError` cru quando nada resolve.
+
+    Sem tradução, o operador recebia só "TypeError" — e esse é exatamente o
+    primeiro erro de quem ainda não configurou a chave.
+    """
+    from app.model_gateway.anthropic_provider import AnthropicProvider
+
+    class _Messages:
+        async def create(self, **kwargs):
+            raise TypeError(
+                "Could not resolve authentication method. Expected one of "
+                "api_key, auth_token, or credentials to be set."
+            )
+
+    class _Client:
+        messages = _Messages()
+
+    with pytest.raises(ProviderNotConfigured) as error:
+        await AnthropicProvider(client=_Client()).invoke(ModelRequest(prompt="oi"))
+
+    message = str(error.value)
+    assert "ANTHROPIC_API_KEY" in message
+    assert "ant auth login" in message
+
+
 # ------------------------------------------------------------------ agregação
 
 

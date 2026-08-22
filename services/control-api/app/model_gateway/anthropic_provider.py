@@ -118,6 +118,15 @@ class AnthropicProvider(ModelProvider):
             return ProviderNotConfigured(
                 "Credencial Anthropic ausente ou sem permissão."
             )
+        # Sem nenhuma credencial resolvível o SDK levanta `TypeError` cru, não
+        # uma exceção tipada. Sem este ramo o operador recebe apenas
+        # "TypeError" — e esse é o primeiro erro de quem ainda não configurou a
+        # chave, justamente o caso em que a mensagem precisa dizer o que fazer.
+        if isinstance(exc, TypeError) and "authentication method" in str(exc).lower():
+            return ProviderNotConfigured(
+                "Credencial Anthropic não resolvida. Defina ANTHROPIC_API_KEY ou "
+                "autentique um perfil com `ant auth login` no ambiente do control-api."
+            )
         return ModelGatewayError(f"Falha na chamada ao provedor anthropic: {name}")
 
 
