@@ -6,6 +6,7 @@ valor de banco é exposto a containers de agente.
 
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import dataclass
 from functools import lru_cache
@@ -21,6 +22,20 @@ DEFAULT_TASK_MAX_ATTEMPTS = 3
 # `rivexx-squad`, e o Docker prefixa o nome da rede com ele.
 DEFAULT_FAKE_WORKER_IMAGE = "rivexx/fake-worker:local"
 DEFAULT_AGENT_NETWORK = "rivexx-squad_agent_net"
+
+BASE_SCOPES = ("context:read", "output:write", "heartbeat:write")
+
+# `model:invoke` e concedido por papel, nao por padrao. O fake worker nao fala
+# com modelo; dar-lhe o escopo abriria o gateway a uma tarefa que nao precisa
+# dele, e escopo nao usado e superficie gratuita.
+ROLE_SCOPES: dict[str, tuple[str, ...]] = {
+    "fake": BASE_SCOPES,
+    "llm": BASE_SCOPES + ("model:invoke",),
+    "po": BASE_SCOPES + ("model:invoke",),
+    "dev": BASE_SCOPES + ("model:invoke", "artifact:write"),
+    "qa": BASE_SCOPES + ("model:invoke", "artifact:write"),
+    "runner": ("context:read", "output:write", "artifact:write"),
+}
 
 
 def _find_contracts_dir() -> Path:
@@ -51,6 +66,7 @@ class Settings:
     public_base_url: str
     task_timeout_seconds: int
     task_max_attempts: int
+    initial_task_role: str
     sql_echo: bool
     # Runtime e despacho (I1-005)
     runtime_backend: str
@@ -64,10 +80,27 @@ class Settings:
     worker_memory_limit: str
     worker_cpu_limit: float
     worker_pids_limit: int
+    # Gateway de modelo (I1-008)
+    model_provider: str
+    model_providers: tuple[str, ...]
+    model_routes: dict
+    anthropic_default_model: str
+    codex_binary: str
+    codex_default_model: str
+    anthropic_profile: str | None
+    codex_home: str | None
 
     @property
     def state_machine_path(self) -> Path:
         return self.contracts_dir / "state-machine" / "v1.json"
+
+    def scopes_for_role(self, role: str) -> tuple[str, ...]:
+        """Escopos do token emitido para um papel.
+
+        Fonte unica: o emissor do token e o gateway leem daqui, entao um papel
+        nunca recebe token com escopo que o endpoint depois recusa.
+        """
+        return ROLE_SCOPES.get(role, BASE_SCOPES)
 
 
 def _require_async_driver(url: str) -> str:
@@ -84,6 +117,29 @@ def _require_async_driver(url: str) -> str:
     raise ValueError(
         "DATABASE_URL deve usar o esquema postgresql:// ou postgresql+asyncpg://"
     )
+
+
+def _model_providers() -> tuple[str, ...]:
+    """Provedores a registrar.
+
+    O provedor padrao entra sempre: uma lista que nao contem o provedor
+    selecionado so produziria falha na primeira chamada real.
+    """
+    raw = os.getenv("MODEL_PROVIDERS", "")
+    names = {item.strip().lower() for item in raw.split(",") if item.strip()}
+    names.add(os.getenv("MODEL_PROVIDER", "echo").lower())
+    names.add("echo")
+    return tuple(sorted(names))
+
+
+def _model_routes() -> dict:
+    raw = os.getenv("MODEL_ROUTES", "").strip()
+    if not raw:
+        return {}
+    parsed = json.loads(raw)
+    if not isinstance(parsed, dict):
+        raise ValueError("MODEL_ROUTES deve ser um objeto JSON indexado por papel")
+    return parsed
 
 
 @lru_cache(maxsize=1)
@@ -105,6 +161,16 @@ def get_settings() -> Settings:
     }
     allowed.add(fake_worker_image)
 
+    model_provider = os.getenv("MODEL_PROVIDER", "echo").lower()
+    initial_task_role = os.getenv(
+        "INITIAL_TASK_ROLE", "fake" if model_provider == "echo" else "po"
+    ).lower()
+    if initial_task_role not in ROLE_SCOPES:
+        raise ValueError(
+            f"INITIAL_TASK_ROLE desconhecido: {initial_task_role}; "
+            f"use um de {', '.join(sorted(ROLE_SCOPES))}"
+        )
+
     return Settings(
         database_url=_require_async_driver(database_url),
         contracts_dir=_find_contracts_dir(),
@@ -115,6 +181,7 @@ def get_settings() -> Settings:
         task_max_attempts=int(
             os.getenv("TASK_MAX_ATTEMPTS", DEFAULT_TASK_MAX_ATTEMPTS)
         ),
+        initial_task_role=initial_task_role,
         sql_echo=os.getenv("SQL_ECHO", "").lower() in {"1", "true", "yes"},
         runtime_backend=os.getenv("RUNTIME_BACKEND", "docker").lower(),
         fake_worker_image=fake_worker_image,
@@ -132,4 +199,14 @@ def get_settings() -> Settings:
         worker_memory_limit=os.getenv("WORKER_MEMORY_LIMIT", "128m"),
         worker_cpu_limit=float(os.getenv("WORKER_CPU_LIMIT", "0.5")),
         worker_pids_limit=int(os.getenv("WORKER_PIDS_LIMIT", "64")),
+        model_provider=model_provider,
+        model_providers=_model_providers(),
+        model_routes=_model_routes(),
+        anthropic_default_model=os.getenv(
+            "ANTHROPIC_DEFAULT_MODEL", "claude-opus-5"
+        ),
+        codex_binary=os.getenv("CODEX_BINARY", "codex"),
+        codex_default_model=os.getenv("CODEX_DEFAULT_MODEL", "gpt-5.6-terra"),
+        anthropic_profile=os.getenv("ANTHROPIC_PROFILE") or None,
+        codex_home=os.getenv("CODEX_HOME") or None,
     )

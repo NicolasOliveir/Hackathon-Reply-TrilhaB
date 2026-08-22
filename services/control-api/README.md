@@ -146,9 +146,123 @@ despacho inteiro sem daemon.
 | `INTERNAL_BASE_URL` | `http://control-api:8000` | URL que o worker recebe |
 | `SCHEDULER_ENABLED` | desligado | sobe o laço junto com a aplicação |
 | `WORKER_MEMORY_LIMIT` / `WORKER_CPU_LIMIT` / `WORKER_PIDS_LIMIT` | `128m` / `0.5` / `64` | limites do container |
+| `INITIAL_TASK_ROLE` | `fake` com `echo`; `po` com provedor real | primeiro worker do run |
 
 O laço fica **desligado por padrão**: um scheduler que sobe em cada worker do
 Uvicorn criaria vários consumidores competindo pela mesma fila.
+
+## Gateway de modelo (I1-008)
+
+Implementa `LLM-01` do `ORQUESTRADOR.md:424` — *"chave fica só na API e uso gera
+metadados no evento"*.
+
+**Por que o gateway é obrigatório, não estilístico.** A `agent_net` é
+`internal: true`: o container de agente **não alcança** a internet nem o
+provedor. A única saída é `POST /internal/v1/tasks/{task_id}/model-invocations`,
+e a credencial vive só neste processo. É a forma mecânica de cumprir o
+`ORQUESTRADOR.md §16` — *"agentes não acessam diretamente internet ou provedor
+LLM"*.
+
+### Provedores
+
+| Provedor | Como fala | Credencial |
+|---|---|---|
+| `anthropic` | SDK oficial `anthropic` (`AsyncAnthropic`), `claude-opus-5`, pensamento adaptativo | `ANTHROPIC_API_KEY` ou perfil `ant auth login` |
+| `codex` | binário `codex exec --output-schema`, sandbox `read-only` | sessão do ChatGPT em `~/.codex/` |
+| `echo` | determinístico, sem rede | nenhuma |
+
+Os três implementam a mesma porta (`app/model_gateway/base.py`). Trocar de
+provedor não muda o gateway, a auditoria nem o contrato do agente.
+
+Para executar o primeiro worker com Claude:
+
+```bash
+MODEL_PROVIDER=anthropic
+MODEL_PROVIDERS=anthropic
+INITIAL_TASK_ROLE=po
+ANTHROPIC_API_KEY=... # somente no ambiente do control-api; nunca no worker
+```
+
+Para usar a sessão local do Codex, selecione `MODEL_PROVIDER=codex` e deixe o
+perfil apontado por `CODEX_HOME` disponível para o `control-api`. Em ambos os
+casos o run nasce com papel `po`, recebe o briefing e percorre gateway, auditoria
+e callback; não é necessário alterar código para uma aplicação específica.
+
+O `echo` não é mock de conveniência: respeita o contrato inteiro, inclusive
+`output_schema` e contabilidade de uso. É o que roda em CI, que não pode depender
+de credencial nem gastar token.
+
+### Roteamento por papel
+
+Cada papel tem exigência diferente: o QA julga critério contra evidência —
+errar ali libera código quebrado — enquanto o `fake` só ecoa. `MODEL_ROUTES`
+sobrescreve por papel, e a rota escolhida entra na auditoria em vez de ficar
+escondida em configuração.
+
+```bash
+MODEL_PROVIDER=anthropic
+MODEL_PROVIDERS=anthropic,codex
+MODEL_ROUTES='{"qa":{"provider":"anthropic","model":"claude-opus-5","effort":"xhigh"}}'
+```
+
+### Auditoria
+
+`control.model_invocations` guarda provedor, modelo, esforço, tokens, latência,
+motivo da rota e erro — **inclusive das invocações que falharam**, porque uma
+invocação sem linha na auditoria seria um gasto invisível.
+
+O **prompt não é persistido em claro**: ele pode conter o briefing, e a tabela é
+projetada no painel. Fica o hash e o tamanho — mesma regra que mantém o briefing
+fora do event log.
+
+O agregado por tarefa entra no `meta` do evento de conclusão, que é o campo que
+o `EventEnvelope` já reserva para `model`, `tokens_in`, `tokens_out` e
+`latency_ms`.
+
+### Autenticação por plano (assinatura), sem chave de API
+
+Funciona, e **o código não muda** — `AsyncAnthropic()` sem argumento já resolve
+o perfil de `ant auth login`. O que muda é a infraestrutura, por três fatos
+verificados no SDK `anthropic` 1.0.0:
+
+| Fato | Onde | Consequência |
+|---|---|---|
+| Token OAuth tem TTL curto e o SDK renova sozinho | `lib/credentials/_constants.py` (`ADVISORY_REFRESH_SECONDS = 120`) | a credencial não é estática |
+| No refresh ele **grava de volta** (`mkstemp` + `os.replace`) | `lib/credentials/_providers.py:470-480` | o diretório precisa ser **gravável** |
+| **Recusa** arquivo group-readable, pedindo `chmod 600` | `lib/credentials/_providers.py:388` | permissão precisa ser `0600` no host |
+
+O `control-api` está `read_only: true` no `infra/compose.yaml`. Um mount
+`:ro` do perfil funciona por alguns minutos e falha quando o token expira — no
+meio da demo. O overlay resolve:
+
+```bash
+ant auth login                       # ou: codex login
+chmod 600 ~/.config/anthropic/configs/*.json
+
+docker compose -f infra/compose.yaml \
+               -f services/control-api/docker-compose.plan-auth.yml up
+```
+
+Verifique **antes** da demo:
+
+```bash
+curl -s localhost:8000/health/providers | python -m json.tool
+```
+
+Ele diz qual fonte cada provedor usaria, se está pronta e avisa sobre diretório
+não gravável ou permissão aberta demais — sem devolver valor de credencial
+nenhum.
+
+Para o provedor `codex` há um requisito extra: o binário precisa estar **na
+imagem** do `control-api`. Ele não é pacote Python, então não entra pelo
+`pyproject.toml` — é uma linha no Dockerfile, que pertence à `I1-002`.
+
+### Escopo `model:invoke`
+
+Concedido por papel em `ROLE_SCOPES` (`app/config.py`), não por padrão. O papel
+`fake` **não** o recebe e leva 403 no gateway. Emissor de token e endpoint leem
+da mesma tabela, então um papel nunca recebe token com escopo que o endpoint
+depois recusa.
 
 ## Preparado para as próximas tarefas
 

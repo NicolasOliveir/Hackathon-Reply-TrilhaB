@@ -13,13 +13,20 @@ import hmac
 import secrets
 from dataclasses import dataclass
 
+from ..config import ROLE_SCOPES, BASE_SCOPES
 from ..persistence.event_store import sha256_of
 
 TOKEN_BYTES = 32
 
-# Escopos do fake worker desta iteração. `model:invoke` não entra: o fake
-# worker não fala com LLM, e conceder escopo não usado é superfície gratuita.
-FAKE_WORKER_SCOPES = ["context:read", "output:write", "heartbeat:write"]
+# Mantido por compatibilidade com I1-005; a fonte canonica passou a ser
+# ROLE_SCOPES em config.py, para que emissor de token e gateway leiam do mesmo
+# lugar. `model:invoke` continua fora do papel `fake`.
+FAKE_WORKER_SCOPES = list(ROLE_SCOPES["fake"])
+
+
+def scopes_for(role: str) -> list[str]:
+    """Escopos do token de um papel."""
+    return list(ROLE_SCOPES.get(role, BASE_SCOPES))
 
 
 @dataclass(frozen=True)

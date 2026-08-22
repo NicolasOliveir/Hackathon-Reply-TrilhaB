@@ -83,6 +83,20 @@ class ControlApiClient:
         )
         return self._json_response(request)
 
+    def invoke_model(self, payload: dict[str, Any]) -> dict[str, Any]:
+        request = Request(
+            f"{self.settings.api_url}/internal/v1/tasks/"
+            f"{self.settings.task_id}/model-invocations",
+            data=json.dumps(payload, separators=(",", ":")).encode("utf-8"),
+            headers={
+                "Accept": "application/json",
+                "Authorization": f"Bearer {self.settings.task_token}",
+                "Content-Type": "application/json",
+            },
+            method="POST",
+        )
+        return self._json_response(request)
+
     def _json_response(self, request: Request) -> dict[str, Any]:
         with urlopen(request, timeout=self.timeout) as response:  # noqa: S310
             body = response.read()
@@ -108,14 +122,35 @@ def validate_context(context: dict[str, Any], settings: Settings) -> None:
         raise ValueError("context run_id does not match worker RUN_ID")
     if context.get("task_id") != settings.task_id:
         raise ValueError("context task_id does not match worker TASK_ID")
-    if context.get("role") != "fake":
-        raise ValueError("context role is not fake")
+    role = context.get("role")
+    if role not in {"fake", "llm", "po", "dev", "qa"}:
+        raise ValueError("context role is not supported by this worker")
 
     scopes = context.get("scopes")
     if not isinstance(scopes, list) or not {"context:read", "output:write"}.issubset(
         scopes
     ):
         raise ValueError("context is missing required scopes")
+    if role != "fake" and "model:invoke" not in scopes:
+        raise ValueError("LLM context is missing model:invoke scope")
+
+
+def _model_request(context: dict[str, Any]) -> dict[str, Any]:
+    role = str(context["role"])
+    task_input = context.get("input", {})
+    briefing = task_input.get("briefing") if isinstance(task_input, dict) else None
+    if not isinstance(briefing, str) or not briefing.strip():
+        raise ValueError("LLM context is missing the briefing")
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "system": (
+            "Você é o primeiro worker de um orquestrador de software. "
+            "Analise o briefing sem assumir uma aplicação específica e devolva "
+            "um resumo acionável para os próximos workers."
+        ),
+        "prompt": f"Papel: {role}\n\nBriefing:\n{briefing}",
+        "max_output_tokens": 2000,
+    }
 
 
 def execute(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
@@ -123,13 +158,22 @@ def execute(settings: Settings, now: datetime | None = None) -> dict[str, Any]:
     context = client.get_context()
     validate_context(context, settings)
     context_hash = canonical_hash(context)
+    role = str(context["role"])
+    if role == "fake":
+        message = "Context received and callback submitted through the central API."
+    else:
+        invocation = client.invoke_model(_model_request(context))
+        message = invocation.get("text")
+        if not isinstance(message, str) or not message.strip():
+            raise ValueError("model gateway returned an empty response")
+        message = message[:2000]
     emitted_at = (now or datetime.now(UTC)).astimezone(UTC)
     payload = {
         "contract_version": CONTRACT_VERSION,
         "task_id": settings.task_id,
         "run_id": settings.run_id,
         "status": "SUCCEEDED",
-        "message": "Context received and callback submitted through the central API.",
+        "message": message,
         "received_context_hash": context_hash,
         "emitted_at": emitted_at.isoformat().replace("+00:00", "Z"),
     }
@@ -145,13 +189,13 @@ def main() -> int:
         settings = Settings.from_env(os.environ)
         payload = execute(settings)
     except Exception as error:  # worker boundary reports a non-zero exit without secrets
-        print(f"fake-worker failed: {error}", file=sys.stderr)
+        print(f"agent-worker failed: {error}", file=sys.stderr)
         return 1
 
     print(
         json.dumps(
             {
-                "event": "fake_worker_completed",
+                "event": "agent_worker_completed",
                 "run_id": payload["run_id"],
                 "task_id": payload["task_id"],
             },

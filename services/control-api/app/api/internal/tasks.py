@@ -20,6 +20,7 @@ from sqlalchemy import select
 from ...config import CONTRACT_VERSION, Settings, get_settings
 from ...contracts.v1.fake_worker_output_schema import FakeWorkerOutput
 from ...db import transaction
+from ...model_gateway.gateway import usage_for_task
 from ...orchestration import tokens
 from ...persistence import idempotency
 from ...persistence.event_store import EventDraft, EventStore, utc_now
@@ -93,6 +94,9 @@ async def get_task_context(
 ) -> dict[str, Any]:
     async with transaction() as session:
         task = await _authenticate(session, task_id, authorization)
+        run = (
+            await session.execute(select(Run).where(Run.run_id == task.run_id))
+        ).scalar_one()
         issued = utc_now()
         return {
             "contract_version": CONTRACT_VERSION,
@@ -105,12 +109,19 @@ async def get_task_context(
             )
             .isoformat()
             .replace("+00:00", "Z"),
-            "scopes": tokens.FAKE_WORKER_SCOPES,
-            # Vazio nesta iteração: o fake worker não recebe briefing, story nem
-            # diff. Quando houver PO, Dev e QA, cada papel recebe aqui apenas as
-            # fontes que a matriz de isolamento autoriza, com hash.
-            "context_manifest": [],
-            "input": {"echo": "first-distributed-slice"},
+            "scopes": tokens.scopes_for(task.role),
+            "context_manifest": [
+                {
+                    "source_id": f"run:{run.run_id}:briefing",
+                    "source_type": "briefing",
+                    "hash": run.briefing_hash,
+                }
+            ] if task.role != "fake" else [],
+            "input": (
+                {"echo": "first-distributed-slice"}
+                if task.role == "fake"
+                else {"briefing": run.briefing}
+            ),
         }
 
 
@@ -187,11 +198,17 @@ async def submit_task_output(
                 ),
             )
 
+        # LLM-01: "uso gera metadados no evento". O agregado de tokens e
+        # latencia da tarefa entra no `meta` do evento de conclusao, que e o
+        # campo que o EventEnvelope ja reserva para isso.
+        usage = await usage_for_task(session, task.task_id)
+
         store = EventStore(session, machine)
         drafts = [
             EventDraft(
                 type=event_type,
-                actor="fake_worker",
+                actor="fake_worker" if task.role == "fake" else task.role,
+                meta=usage.as_event_meta(),
                 task_id=task.task_id,
                 payload={
                     "status": payload.status,
