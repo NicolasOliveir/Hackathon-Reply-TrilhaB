@@ -16,6 +16,7 @@ from .api.internal.model_invocations import router as model_invocations_router
 from .api.internal.tasks import router as internal_tasks_router
 from .api.internal.po_outputs import router as po_outputs_router
 from .api.internal.dev_outputs import router as dev_outputs_router
+from .api.internal.qa_outputs import router as qa_outputs_router
 from .api.internal.worker_failures import router as worker_failures_router
 from .api.internal.worker_artifacts import router as worker_artifacts_router
 from .api.runs.backlog import router as backlog_router
@@ -50,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(internal_tasks_router)
     app.include_router(po_outputs_router)
     app.include_router(dev_outputs_router)
+    app.include_router(qa_outputs_router)
     app.include_router(worker_failures_router)
     app.include_router(worker_artifacts_router)
     app.include_router(model_invocations_router)
