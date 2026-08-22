@@ -38,21 +38,21 @@ observável, submeta `NEEDS_HUMAN` em vez de inventar um teste.
 
 ## Habilidade 2: Validação e sincronismo de dependências (Fase 2)
 
-**Gatilho:** após a API validar o plano JSON e disponibilizar os testes
-materializados para o runner.
+**Gatilho:** após a API validar o plano JSON, subir o ambiente da aplicação e
+publicar `APP_ENVIRONMENT_READY` com healthchecks aprovados.
 
 **Ação de infraestrutura:** inspecionar os manifestos de dependências da
 arquitetura aprovada — por exemplo, `/backend/requirements.txt` e
 `/frontend/package.json`. Quando uma dependência tiver mudado, fazer rebuild
 limpo obrigatório no campo `environment` da configuração JSON e registrar os
-manifestos afetados. O runner executa o rebuild e registra os comandos e seus
-resultados.
+manifestos afetados. O `control-api`, por meio do `ContainerRuntime`, executa o
+rebuild e sobe o ambiente; o runner registra os comandos e seus resultados.
 
 **Ação de teste:** fornecer ao runner a configuração JSON e os testes
-materializados. O runner inicia o ambiente e emite `TEST_EXECUTED` com saída,
-código de saída, evidências e critério associado. O QA não pode alegar que um
-comando passou sem a evidência do runner. Preserve falhas preexistentes fora do
-escopo como achados separados.
+materializados. O runner executa contra os endpoints internos do ambiente já
+saudável e emite `TEST_EXECUTED` com saída, código de saída, evidências e
+critério associado. O QA não pode alegar que um comando passou sem a evidência
+do runner. Preserve falhas preexistentes fora do escopo como achados separados.
 
 ## Habilidade 3: Protocolo de comunicação e feedback loop
 

@@ -41,6 +41,11 @@ Volumes:
   run_workspaces ──► Dev (RW), QA (RO), runner (RO)
   run_artifacts  ──► QA/runner produzem; API registra hash e metadados
 
+Ambiente sob teste:
+  CONTROL-API / DockerContainerRuntime ──► rivexx-api + rivexx-web
+  rede privada por execução ──► acessível somente pelo Test runner
+  healthchecks aprovados ──► endpoints internos entregues ao Test runner
+
 Proibições:
   agente ─X─► PostgreSQL
   agente ─X─► outro agente
@@ -60,6 +65,8 @@ PO_QUEUED ─► PO_RUNNING ─► BACKLOG_FROZEN
 DEV_QUEUED ─► DEV_RUNNING ─► DELIVERY_READY
   ▼
 QA_QUEUED ─► QA_RUNNING ─► TESTS_READY
+  ▼
+APP_ENV_QUEUED ─► APP_ENV_RUNNING ─► APP_ENV_READY
   ▼
 RUNNER_QUEUED ─► RUNNER_RUNNING
   ├── PASS ─► STORY_ACCEPTED ─► próxima story ─► COMPLETED
