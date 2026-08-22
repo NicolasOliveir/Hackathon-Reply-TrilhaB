@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import pytest
 
 from app.api.runs.router import _serialize, _to_response
-from app.config import Settings, _find_contracts_dir
+from app.config import Settings, get_settings
 from app.persistence.models import Run
 
 RUN_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
@@ -20,15 +20,14 @@ TASK_ID = uuid.UUID("22222222-2222-4222-8222-222222222222")
 
 
 @pytest.fixture(scope="module")
-def settings() -> Settings:
-    return Settings(
-        database_url="postgresql+asyncpg://unused/unused",
-        contracts_dir=_find_contracts_dir(),
-        public_base_url="http://localhost:8000",
-        task_timeout_seconds=300,
-        task_max_attempts=3,
-        sql_echo=False,
-    )
+def settings(_environment: None) -> Settings:
+    """Usa as settings reais do ambiente de teste.
+
+    Construir `Settings` campo a campo aqui obrigaria a atualizar este teste a
+    cada configuração nova — e a quebra apareceria como erro de fixture, não
+    como falha de contrato.
+    """
+    return get_settings()
 
 
 def _run(state: str = "WORKER_QUEUED", task_id: uuid.UUID | None = TASK_ID) -> Run:

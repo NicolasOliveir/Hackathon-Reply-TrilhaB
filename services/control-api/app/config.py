@@ -17,6 +17,11 @@ CONTROL_SCHEMA = "control"
 DEFAULT_TASK_TIMEOUT_SECONDS = 300
 DEFAULT_TASK_MAX_ATTEMPTS = 3
 
+# Nomes espelhados de infra/compose.yaml. O projeto Compose se chama
+# `rivexx-squad`, e o Docker prefixa o nome da rede com ele.
+DEFAULT_FAKE_WORKER_IMAGE = "rivexx/fake-worker:local"
+DEFAULT_AGENT_NETWORK = "rivexx-squad_agent_net"
+
 
 def _find_contracts_dir() -> Path:
     """Localiza `packages/contracts` subindo a partir deste arquivo.
@@ -47,6 +52,18 @@ class Settings:
     task_timeout_seconds: int
     task_max_attempts: int
     sql_echo: bool
+    # Runtime e despacho (I1-005)
+    runtime_backend: str
+    fake_worker_image: str
+    allowed_images: frozenset[str]
+    agent_network: str
+    internal_base_url: str
+    scheduler_id: str
+    scheduler_enabled: bool
+    scheduler_idle_seconds: float
+    worker_memory_limit: str
+    worker_cpu_limit: float
+    worker_pids_limit: int
 
     @property
     def state_machine_path(self) -> Path:
@@ -78,6 +95,16 @@ def get_settings() -> Settings:
             "ao PostgreSQL; containers de agente nunca recebem esta variável."
         )
 
+    fake_worker_image = os.getenv("FAKE_WORKER_IMAGE", DEFAULT_FAKE_WORKER_IMAGE)
+    # A allowlist sempre contém a imagem configurada: uma allowlist que exclui a
+    # única imagem em uso só produziria falha na primeira execução real.
+    allowed = {
+        item.strip()
+        for item in os.getenv("RUNTIME_IMAGE_ALLOWLIST", "").split(",")
+        if item.strip()
+    }
+    allowed.add(fake_worker_image)
+
     return Settings(
         database_url=_require_async_driver(database_url),
         contracts_dir=_find_contracts_dir(),
@@ -89,4 +116,20 @@ def get_settings() -> Settings:
             os.getenv("TASK_MAX_ATTEMPTS", DEFAULT_TASK_MAX_ATTEMPTS)
         ),
         sql_echo=os.getenv("SQL_ECHO", "").lower() in {"1", "true", "yes"},
+        runtime_backend=os.getenv("RUNTIME_BACKEND", "docker").lower(),
+        fake_worker_image=fake_worker_image,
+        allowed_images=frozenset(allowed),
+        agent_network=os.getenv("AGENT_NETWORK", DEFAULT_AGENT_NETWORK),
+        # O worker fala com a API pelo nome do serviço na agent_net, nunca pelo
+        # endereço público publicado no host.
+        internal_base_url=os.getenv(
+            "INTERNAL_BASE_URL", "http://control-api:8000"
+        ).rstrip("/"),
+        scheduler_id=os.getenv("SCHEDULER_ID", f"control-api-{os.getpid()}"),
+        scheduler_enabled=os.getenv("SCHEDULER_ENABLED", "").lower()
+        in {"1", "true", "yes"},
+        scheduler_idle_seconds=float(os.getenv("SCHEDULER_IDLE_SECONDS", "1.0")),
+        worker_memory_limit=os.getenv("WORKER_MEMORY_LIMIT", "128m"),
+        worker_cpu_limit=float(os.getenv("WORKER_CPU_LIMIT", "0.5")),
+        worker_pids_limit=int(os.getenv("WORKER_PIDS_LIMIT", "64")),
     )

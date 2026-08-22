@@ -21,7 +21,9 @@ control-api = [
   "sqlalchemy[asyncio]>=2.0",
   "asyncpg>=0.29",
   "alembic>=1.13",
-  "pydantic>=2.7,<3"
+  "pydantic>=2.7,<3",
+  # SDK usado apenas por app/runtime/docker_runtime.py (ORQUESTRADOR §10).
+  "docker>=7.1"
 ]
 control-api-dev = [
   "rivexx-autonomous-squad[control-api,contracts]",
