@@ -21,6 +21,10 @@ from urllib.parse import urlparse
 from uuid import UUID, NAMESPACE_URL, uuid5
 
 
+_LOCKS_GUARD = threading.Lock()
+_ROOT_LOCKS: dict[Path, threading.RLock] = {}
+
+
 class ArtifactError(Exception):
     """Erro base do armazenamento de artefatos."""
 
@@ -163,7 +167,11 @@ class ArtifactStore:
             if directory.is_symlink():
                 raise UnsafeArtifactPath(f"diretório do store é link: {directory}")
             directory.mkdir(exist_ok=True)
-        self._lock = threading.RLock()
+        # A API cria stores sob demanda. O lock precisa ser compartilhado por
+        # todas as instâncias que apontam para a mesma raiz; um lock por objeto
+        # permitiria duas requisições vencerem juntas a checagem do path.
+        with _LOCKS_GUARD:
+            self._lock = _ROOT_LOCKS.setdefault(self.root, threading.RLock())
 
     def path_for(
         self,

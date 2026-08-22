@@ -190,6 +190,28 @@ paths:
         - TaskBearer: []
       parameters:
         - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [category, message]
+              properties:
+                category:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                retryable:
+                  type: boolean
+                  default: false
+                details:
+                  type: object
       responses:
         "202":
           description: Falha registrada no event log.

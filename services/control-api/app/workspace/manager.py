@@ -38,6 +38,8 @@ class InvalidWorkspaceRole(WorkspaceError, ValueError):
 
 WorkerRole = Literal["dev", "qa", "runner"]
 _SAFE_COMPONENT = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+DEFAULT_WORKER_UID = 10001
+DEFAULT_WORKER_GID = 10001
 
 
 @dataclass(frozen=True)
@@ -202,10 +204,31 @@ def _make_writable(root: Path) -> None:
             path.chmod(info.st_mode | stat.S_IWUSR)
 
 
+def _assign_owner(root: Path, uid: int, gid: int) -> None:
+    """Entrega a árvore ao UID do worker quando o control-api roda como root.
+
+    Em desenvolvimento local, o processo pode não ter permissão para chown;
+    nesse caso ele já é o proprietário e os testes/ferramentas rodam sob o
+    mesmo usuário. No container oficial o control-api é root e a troca para
+    ``10001:10001`` é obrigatória antes do bind mount.
+    """
+    if not hasattr(os, "chown") or os.geteuid() != 0:
+        return
+    for relative, _ in _tree_entries(root):
+        os.chown(root / relative, uid, gid)
+    os.chown(root, uid, gid)
+
+
 class WorkspaceManager:
     """Gerencia snapshots de scaffold e cópias mutáveis por revisão."""
 
-    def __init__(self, root: str | Path) -> None:
+    def __init__(
+        self,
+        root: str | Path,
+        *,
+        worker_uid: int = DEFAULT_WORKER_UID,
+        worker_gid: int = DEFAULT_WORKER_GID,
+    ) -> None:
         requested_root = Path(root).absolute()
         if requested_root.is_symlink():
             raise UnsafeWorkspacePath(
@@ -213,6 +236,8 @@ class WorkspaceManager:
             )
         requested_root.mkdir(parents=True, exist_ok=True)
         self.root = requested_root.resolve(strict=True)
+        self.worker_uid = worker_uid
+        self.worker_gid = worker_gid
         self.snapshots_root = self.root / "snapshots"
         self.runs_root = self.root / "runs"
         for directory in (self.snapshots_root, self.runs_root):
@@ -295,6 +320,10 @@ class WorkspaceManager:
             shutil.copytree(loaded_snapshot.path, code_path, symlinks=True)
             _make_writable(code_path)
             (temporary / "tests").mkdir(mode=0o700)
+            _assign_owner(code_path, self.worker_uid, self.worker_gid)
+            _assign_owner(
+                temporary / "tests", self.worker_uid, self.worker_gid
+            )
             (temporary / "workspace.json").write_text(
                 json.dumps(
                     {
@@ -399,6 +428,10 @@ class WorkspaceManager:
         # Não deixa um worker transformar um mount futuro em ponte para o host.
         _tree_entries(code_path)
         _tree_entries(tests_path)
+        # Também corrige workspaces criados antes da introdução do UID
+        # explícito; a operação é idempotente.
+        _assign_owner(code_path, self.worker_uid, self.worker_gid)
+        _assign_owner(tests_path, self.worker_uid, self.worker_gid)
         return Workspace(
             run_id=run_id,
             task_id=task_id,

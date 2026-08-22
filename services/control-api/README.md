@@ -166,11 +166,16 @@ conflito. Workers publicam e leem artefatos somente pelos endpoints internos.
 `WorkspaceManager` cria um snapshot imutável do scaffold e uma cópia por
 `run/task/revision`. A política de mounts é explícita: Dev recebe `/workspace`
 RW; QA recebe o código em `/workspace` RO e produz testes em `/tests` RW.
+Antes de montar, a árvore é entregue ao UID `10001` usado nas imagens. O adapter
+Docker traduz o path interno do volume do control-api para o `Source` visto pelo
+daemon; um path que não pertence aos volumes do control-api é recusado.
 
 `ToolExecutor` recebe `argv`, cwd virtual, perfil e timeout. Ele executa sem
 shell, traduz somente `/workspace` e `/tests`, aplica allowlist de executáveis e
 limita a saída capturada. O resultado contém exit code, duração, timeout e a
-evidência textual; o executor não decide aceite ou reprovação.
+evidência textual; o executor não decide aceite ou reprovação. O confinamento
+de filesystem do processo é fornecido pelo container efêmero: root filesystem
+read-only e somente os mounts declarados, nunca pelo subprocesso isoladamente.
 
 APIs internas disponíveis ao worker autenticado:
 

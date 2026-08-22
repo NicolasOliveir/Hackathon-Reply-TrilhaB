@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import stat
 from pathlib import Path
 
@@ -79,6 +80,25 @@ def test_mounts_separate_dev_qa_and_runner_permissions(tmp_path: Path):
     assert all(isinstance(mount, ContainerMount) for mount in workspace.qa_mounts)
     validate_worker_mounts("dev", workspace.dev_mounts)
     validate_worker_mounts("qa", workspace.qa_mounts)
+
+
+def test_workspace_is_owned_by_the_non_root_worker_when_control_api_is_root(
+    tmp_path: Path,
+):
+    manager = WorkspaceManager(tmp_path / "managed")
+    snapshot = manager.create_snapshot(_scaffold(tmp_path))
+    workspace = manager.create_workspace(
+        snapshot, run_id="run-001", task_id="task-001", revision=1
+    )
+
+    expected_uid = 10001 if os.geteuid() == 0 else os.geteuid()
+    expected_gid = 10001 if os.geteuid() == 0 else os.getegid()
+    assert workspace.code_path.stat().st_uid == expected_uid
+    assert workspace.code_path.stat().st_gid == expected_gid
+    assert workspace.tests_path.stat().st_uid == expected_uid
+    assert workspace.tests_path.stat().st_gid == expected_gid
+    assert workspace.code_path.stat().st_mode & stat.S_IWUSR
+    assert workspace.tests_path.stat().st_mode & stat.S_IWUSR
 
 
 @pytest.mark.parametrize(

@@ -65,11 +65,19 @@ class ContainerMount:
         source = Path(self.source)
         if not source.is_absolute():
             raise InvalidMount(f"origem do mount precisa ser absoluta: {self.source!r}")
+        if source == Path(source.anchor):
+            raise InvalidMount("a raiz do host nunca pode ser montada no worker")
+        object.__setattr__(self, "source", str(source))
         if self.target not in MOUNT_TARGETS:
             allowed = ", ".join(sorted(MOUNT_TARGETS))
             raise InvalidMount(
                 f"destino do mount precisa ser uma raiz permitida ({allowed}): "
                 f"{self.target!r}"
+            )
+        if source.name != self.target.removeprefix("/"):
+            raise InvalidMount(
+                f"origem de {self.target} precisa terminar em "
+                f"{self.target.removeprefix('/')!r}: {source}"
             )
 
 

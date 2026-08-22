@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from threading import Barrier
 
 import pytest
 
@@ -51,6 +53,35 @@ def test_same_write_is_idempotent_and_conflicting_retry_is_rejected(tmp_path: Pa
     assert second == first
     with pytest.raises(ArtifactConflict):
         store.write("evidence/output.txt", "different", _metadata())
+
+
+def test_store_instances_serialize_concurrent_writes_to_the_same_path(tmp_path: Path):
+    root = tmp_path / "artifacts"
+    stores = (ArtifactStore(root), ArtifactStore(root))
+    barrier = Barrier(2)
+
+    def write(index: int):
+        barrier.wait()
+        return stores[index].write(
+            "evidence/concurrent.txt", f"payload-{index}", _metadata()
+        )
+
+    references = []
+    conflicts = []
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        futures = [executor.submit(write, index) for index in range(2)]
+        for future in futures:
+            try:
+                references.append(future.result())
+            except ArtifactConflict as exc:
+                conflicts.append(exc)
+
+    assert len(references) == 1
+    assert len(conflicts) == 1
+    assert ArtifactStore(root).read_bytes(references[0]) in {
+        b"payload-0",
+        b"payload-1",
+    }
 
 
 def test_registers_file_materialized_at_confined_path(tmp_path: Path):

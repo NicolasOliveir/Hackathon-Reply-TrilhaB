@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from app.runtime.base import (
@@ -100,8 +102,8 @@ def test_worker_mount_policy_rejects_permission_inversion(tmp_path):
 
 def test_container_spec_rejects_duplicate_mount_targets(tmp_path):
     mounts = (
-        ContainerMount(str(tmp_path / "workspace-a"), "/workspace", True),
-        ContainerMount(str(tmp_path / "workspace-b"), "/workspace", False),
+        ContainerMount(str(tmp_path / "a" / "workspace"), "/workspace", True),
+        ContainerMount(str(tmp_path / "b" / "workspace"), "/workspace", False),
     )
 
     with pytest.raises(InvalidMount, match="destinos"):
@@ -116,6 +118,13 @@ def test_container_spec_confines_working_dir_to_declared_mount(tmp_path):
 
     with pytest.raises(InvalidMount, match="mount declarado"):
         _spec(mounts=(mount,), working_dir="/tests")
+
+
+def test_mount_refuses_host_root_and_mismatched_source_name(tmp_path):
+    with pytest.raises(InvalidMount, match="raiz do host"):
+        ContainerMount("/", "/workspace", False)
+    with pytest.raises(InvalidMount, match="precisa terminar"):
+        ContainerMount(str(tmp_path / "other"), "/workspace", False)
 
 
 class _CreatedContainer:
@@ -153,6 +162,50 @@ async def test_docker_runtime_translates_mounts_user_and_workdir(tmp_path):
     }
     assert client.containers.create_kwargs["user"] == "12000:12000"
     assert client.containers.create_kwargs["working_dir"] == "/tests"
+
+
+async def test_docker_runtime_translates_control_api_volume_path_for_daemon(tmp_path):
+    client = _DockerClient()
+    container_root = Path("/var/lib/rivexx/workspaces")
+    daemon_root = Path("/var/lib/docker/volumes/rivexx-squad_run_workspaces/_data")
+    runtime = DockerContainerRuntime(
+        client,
+        frozenset({IMAGE}),
+        mount_translations={container_root: daemon_root},
+    )
+    workspace = container_root / "runs/run-1/task-1/r1/workspace"
+
+    await runtime.create(
+        _spec(mounts=worker_mounts("dev", workspace=workspace))
+    )
+
+    assert client.containers.create_kwargs["volumes"] == {
+        str(daemon_root / "runs/run-1/task-1/r1/workspace"): {
+            "bind": "/workspace",
+            "mode": "rw",
+        }
+    }
+
+
+async def test_containerized_runtime_refuses_source_outside_its_volumes(tmp_path):
+    client = _DockerClient()
+    runtime = DockerContainerRuntime(
+        client,
+        frozenset({IMAGE}),
+        mount_translations={
+            "/var/lib/rivexx/workspaces": "/var/lib/docker/volumes/workspaces/_data"
+        },
+        require_translated_mounts=True,
+    )
+
+    with pytest.raises(InvalidMount, match="não pertence"):
+        await runtime.create(
+            _spec(
+                mounts=worker_mounts(
+                    "dev", workspace=tmp_path / "unmanaged" / "workspace"
+                )
+            )
+        )
 
 
 async def test_fake_runtime_refuses_image_outside_allowlist():
