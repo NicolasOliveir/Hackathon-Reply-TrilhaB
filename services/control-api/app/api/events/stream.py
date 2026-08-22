@@ -85,7 +85,14 @@ async def iter_run_events(
                 cursor = event.sequence
                 last_activity = time.monotonic()
                 yield encode_event(event)
-            continue
+
+            # Um lote cheio pode esconder mais eventos já persistidos; nesse
+            # caso buscamos a próxima página imediatamente. Um lote parcial
+            # significa que alcançamos o fim atual do log. Aguardar antes da
+            # próxima consulta também faz o cancelamento de um cliente ocorrer
+            # sem uma conexão do pool aberta na maioria dos fechamentos.
+            if len(events) == batch_size:
+                continue
 
         now = time.monotonic()
         if now - last_activity >= heartbeat_seconds:
