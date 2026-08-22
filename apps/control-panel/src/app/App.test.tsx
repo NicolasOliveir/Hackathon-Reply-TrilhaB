@@ -47,10 +47,23 @@ describe('painel responsivo e auditoria', () => {
 
   it('orienta uma pessoa não técnica e oferece exemplo preenchível', () => {
     render(<App client={testClient()} />);
-    expect(screen.getByRole('heading', { name: /precisa melhorar no trabalho/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /precisa melhorar no trabalho/i }),
+    ).toBeInTheDocument();
     expect(screen.getByText(/não precisa usar termos técnicos/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /usar um exemplo/i }));
-    expect((screen.getByLabelText(label) as HTMLTextAreaElement).value).toContain('não conformidades');
+    expect((screen.getByLabelText(label) as HTMLTextAreaElement).value).toContain(
+      'não conformidades',
+    );
+  });
+
+  it('mantém as dicas opcionais recolhidas até a pessoa pedir ajuda', () => {
+    render(<App client={testClient()} />);
+    const summary = screen.getByText(/precisa de ajuda para escrever/i);
+    const guide = summary.closest('details');
+    expect(guide).not.toHaveAttribute('open');
+    fireEvent.click(summary);
+    expect(guide).toHaveAttribute('open');
   });
 
   it('cria um run real e carrega eventos tipados', async () => {
@@ -59,7 +72,9 @@ describe('painel responsivo e auditoria', () => {
     submit();
 
     expect(screen.getByRole('status')).toHaveTextContent('Criando execução');
-    await waitFor(() => expect(screen.getByText('Briefing recebido')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Briefing recebido')).toBeInTheDocument(),
+    );
     expect(client.createRun).toHaveBeenCalledWith(
       validBriefing,
       expect.stringMatching(/^.{8,}$/),
@@ -71,7 +86,9 @@ describe('painel responsivo e auditoria', () => {
   it('expõe sequência, causalidade, IDs e detalhes progressivos', async () => {
     render(<App client={testClient()} />);
     submit();
-    await waitFor(() => expect(screen.getByText('Briefing recebido')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Briefing recebido')).toBeInTheDocument(),
+    );
     expect(screen.getByText('Etapa 2')).toBeInTheDocument();
     fireEvent.click(screen.getAllByText(/Detalhes t/)[0]);
     expect(screen.getAllByText(/Correlation ID/).length).toBeGreaterThan(0);
@@ -80,7 +97,9 @@ describe('painel responsivo e auditoria', () => {
   it('filtra e limpa auditoria', async () => {
     render(<App client={testClient()} />);
     submit();
-    await waitFor(() => expect(screen.getByText('Briefing recebido')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Briefing recebido')).toBeInTheDocument(),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Sistema' }));
     expect(screen.getAllByText(/Execu/).length).toBeGreaterThan(0);
     fireEvent.click(screen.getByRole('button', { name: 'Limpar filtros' }));
@@ -122,7 +141,9 @@ describe('painel responsivo e auditoria', () => {
     const { container } = render(<App client={client} />);
     submit();
 
-    await waitFor(() => expect(container.querySelectorAll('.timeline li')).toHaveLength(4));
+    await waitFor(() =>
+      expect(container.querySelectorAll('.timeline li')).toHaveLength(4),
+    );
     fireEvent.click(screen.getByRole('button', { name: /reconectar agora/i }));
     await waitFor(() => expect(followRunEvents).toHaveBeenCalledTimes(2));
 
@@ -133,7 +154,9 @@ describe('painel responsivo e auditoria', () => {
   it('não renderiza marcadores de encoding corrompido em ready e error', async () => {
     const { unmount } = render(<App client={testClient()} />);
     submit();
-    await waitFor(() => expect(screen.getByText('Briefing recebido')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Briefing recebido')).toBeInTheDocument(),
+    );
     expect(document.body.textContent).not.toMatch(/\u00c3|\u00c2|\ufffd/);
     unmount();
     render(<App client={testClient()} />);
@@ -144,9 +167,13 @@ describe('painel responsivo e auditoria', () => {
   it('anuncia feedback de cópia e mantém causa na camada principal', async () => {
     render(<App client={testClient()} />);
     submit();
-    await waitFor(() => expect(screen.getByText('Briefing recebido')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('Briefing recebido')).toBeInTheDocument(),
+    );
     expect(screen.getAllByText(/Causado pela/).length).toBeGreaterThan(0);
-    fireEvent.click(screen.getAllByRole('button', { name: /Run ID: copiar/i })[0]);
+    fireEvent.click(
+      screen.getAllByRole('button', { name: /Run ID: copiar/i })[0],
+    );
     expect(await screen.findByText(/Run ID copiado/)).toBeInTheDocument();
   });
 });
