@@ -175,4 +175,3 @@ Entrega:
 
 Concluida quando um agente obtem resposta real do provedor sem que a credencial saia do
 `control-api`, o uso aparece no evento e o papel sem escopo recebe 403.
-
