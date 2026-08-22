@@ -171,6 +171,18 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
     void submit(lastBriefing.current);
   };
 
+  const backToStart = () => {
+    submission.current?.abort();
+    setSubmitted(false);
+    setPhase('idle');
+    setRun(null);
+    setEvents([]);
+    setBacklog(null);
+    setError('');
+    setConnection('disconnected');
+    lastSequence.current = 0;
+  };
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -210,6 +222,7 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
         <>
           <RunSummary phase={phase} run={run} events={events} />
           <div className="run-actions" aria-label="Ações da criação">
+            <button className="secondary" onClick={backToStart}>← Voltar ao início</button>
             <button className="secondary" onClick={rerun}>Executar novamente</button>
             {!['COMPLETED', 'FAILED', 'CANCELED'].includes(run.state) && <button className="cancel-action" onClick={() => void cancel()}>Cancelar criação</button>}
           </div>
