@@ -1,0 +1,16 @@
+{
+  "name": "@orquestrador/control-panel",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "tsc --noEmit",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": { "@vitejs/plugin-react": "latest", "vite": "latest", "typescript": "latest", "react": "latest", "react-dom": "latest" },
+  "devDependencies": { "vitest": "latest", "jsdom": "latest", "@testing-library/react": "latest", "@testing-library/jest-dom": "latest", "@types/react": "latest", "@types/react-dom": "latest" }
+}

@@ -1,0 +1,8 @@
+import { fireEvent, render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
+import { App } from './App';
+describe('control panel', () => {
+  it('validates briefing without clearing input', () => { render(<App />); const input = screen.getByLabelText('O que você quer construir?'); fireEvent.change(input, { target: { value: 'curto' } }); fireEvent.click(screen.getByRole('button', { name: /iniciar/i })); expect(screen.getByRole('alert')).toBeInTheDocument(); expect(input).toHaveValue('curto'); });
+  it('sends once and renders summary and ordered timeline', () => { render(<App />); fireEvent.change(screen.getByLabelText('O que você quer construir?'), { target: { value: 'Criar um painel de execução' } }); fireEvent.click(screen.getByRole('button', { name: /iniciar/i })); expect(screen.getByRole('heading', { name: 'Resumo' })).toBeInTheDocument(); expect(screen.getByText('BRIEFING RECEIVED')).toBeInTheDocument(); expect(screen.getByText('PO STARTED')).toBeInTheDocument(); expect(screen.getByRole('button', { name: /execução enviada/i })).toBeDisabled(); });
+  it('expands event payload and exposes reconnection status', () => { render(<App />); fireEvent.change(screen.getByLabelText('O que você quer construir?'), { target: { value: 'Criar um painel de execução' } }); fireEvent.click(screen.getByRole('button', { name: /iniciar/i })); fireEvent.click(screen.getAllByRole('button', { name: /ver payload/i })[2]); expect(screen.getByText(/manifest_hash/)).toBeInTheDocument(); fireEvent.click(screen.getByRole('button', { name: /simular reconexão/i })); expect(screen.getByText('Reconectando…')).toBeInTheDocument(); });
+});
