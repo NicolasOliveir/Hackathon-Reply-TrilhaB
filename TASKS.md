@@ -42,6 +42,7 @@ do desenvolvedor; `Branch` deve existir no remoto enquanto a tarefa estiver ativ
 | `I2-007` | Test runner e motor de veredito | `LIVRE` | — | — | — | `I2-002`, `I2-003`, `I2-006` | `services/test-runner/**` e motor de veredito da API | Executar plano sem LLM e derivar aceite, reprovação ou necessidade de intervenção. |
 | `I2-008` | Orquestração, painel e ciclo de correção | `LIVRE` | — | — | — | `I2-004`, `I2-005`, `I2-006`, `I2-007` | grafo final, projeções e telas de backlog/ADR/QA | Integrar uma story, reprovação real, correção, retomada e observabilidade mobile. |
 | `I2-009` | Validação Trilha B e auditoria independente | `LIVRE` | — | — | — | `I2-008` | `tests/e2e/**`, seeds, roteiro e evidências da demo | Provar os três cenários Rivexx e a generalidade do squad com evidências reproduzíveis. |
+| `I2-010` | Compatibilidade structured output com Codex de plano | `EM_ANDAMENTO` | Nicolau Codex | `task/I2-010-codex-schema` | 2026-08-22 17:09 -03:00 | `I2-004` | `services/control-api/app/model_gateway/codex_provider.py` e testes | Remover keywords não aceitas pelo Responses structured output sem enfraquecer a validação semântica local do PO. |
 
 ## Detalhamento e critérios de conclusão
 
