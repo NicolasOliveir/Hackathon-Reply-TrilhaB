@@ -6,7 +6,7 @@ const EXAMPLE_BRIEFING =
 
 type RunFormProps = {
   onSubmit: (value: string) => void;
-  onError: () => void;
+  onError: (value: string) => void;
 };
 
 export function RunForm({ onSubmit, onError }: RunFormProps) {
@@ -38,16 +38,8 @@ export function RunForm({ onSubmit, onError }: RunFormProps) {
         <span className="step-badge">1 de 1 · Conte sua necessidade</span>
         <h2 id="briefing-title">O que você precisa melhorar no trabalho?</h2>
         <p className="briefing-lead">
-          Escreva do seu jeito. Não precisa usar termos técnicos — nossa equipe virtual organiza as informações para você.
+          Conte o problema do seu jeito. Não precisa usar termos técnicos.
         </p>
-        <div className="prompt-guide" aria-labelledby="prompt-guide-title">
-          <p id="prompt-guide-title">Para começar, conte:</p>
-          <ul>
-            <li><span aria-hidden="true">1</span> Qual problema acontece hoje?</li>
-            <li><span aria-hidden="true">2</span> Quem é afetado por ele?</li>
-            <li><span aria-hidden="true">3</span> Como seria uma solução útil?</li>
-          </ul>
-        </div>
       </div>
 
       <form className="briefing-card" onSubmit={submit} noValidate>
@@ -78,9 +70,19 @@ export function RunForm({ onSubmit, onError }: RunFormProps) {
         </div>
         <details className="demo-tools">
           <summary>Opções de demonstração</summary>
-          <button type="button" className="secondary" onClick={onError}>Simular erro de conexão</button>
+          <button type="button" className="secondary" onClick={() => onError(value)}>Simular erro de conexão</button>
         </details>
       </form>
+
+      <details className="prompt-guide">
+        <summary>Precisa de ajuda para escrever?</summary>
+        <p>Inclua estas informações:</p>
+        <ul>
+          <li><span aria-hidden="true">1</span> Qual problema acontece hoje?</li>
+          <li><span aria-hidden="true">2</span> Quem é afetado por ele?</li>
+          <li><span aria-hidden="true">3</span> Como seria uma solução útil?</li>
+        </ul>
+      </details>
     </section>
   );
 }
