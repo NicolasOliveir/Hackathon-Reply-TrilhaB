@@ -213,6 +213,7 @@ def execute(settings: Settings, api: Api | None = None) -> dict:
     schema = json.loads(settings.schema_path.read_text(encoding="utf-8"))
     system, prompt = build_prompt(briefing, settings.run_id, briefing_hash)
     errors: list[str] = []
+    previous_output: dict | None = None
     for attempt in range(MAX_REPAIRS + 1):
         api.heartbeat()
         request = {
@@ -221,12 +222,15 @@ def execute(settings: Settings, api: Api | None = None) -> dict:
             "prompt": prompt if not errors else (
                 "Repare o JSON anterior e devolva o documento completo. Erros por JSON Pointer:\n"
                 + "\n".join(errors)
+                + "\n\nJSON ANTERIOR:\n"
+                + json.dumps(previous_output, ensure_ascii=False, separators=(",", ":"))
             ),
             "output_schema": schema,
             "max_output_tokens": 16000,
         }
         try:
             output = parse_model_output(api.invoke(request))
+            previous_output = output
             errors = schema_errors(output, schema, settings.schema_path.parent)
             if not errors:
                 errors = semantic_errors(output, run_id=settings.run_id, briefing_hash=briefing_hash)
