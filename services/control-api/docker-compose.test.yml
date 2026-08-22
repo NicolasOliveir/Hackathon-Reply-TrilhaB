@@ -1,0 +1,20 @@
+# PostgreSQL apenas para os testes de integracao de I1-004.
+#
+# Nao substitui o Compose oficial de infra/ (area exclusiva de I1-002). Quando
+# aquele estiver na main, os testes apontam para ele mudando DATABASE_URL.
+services:
+  postgres-test:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: control
+      POSTGRES_PASSWORD: control
+      POSTGRES_DB: control_test
+    ports:
+      - "55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U control -d control_test"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+    tmpfs:
+      - /var/lib/postgresql/data
