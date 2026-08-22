@@ -295,6 +295,27 @@ async def test_token_is_revoked_after_the_callback(client):
     assert after.status_code == 403
 
 
+async def test_expired_token_is_rejected(client):
+    from datetime import timedelta
+
+    from app.db import get_session_factory
+    from app.persistence.event_store import utc_now
+    from app.persistence.models import AgentTask
+
+    _, task_id, token = await _dispatch(client, "int-key-expired-token")
+    async with get_session_factory()() as session:
+        async with session.begin():
+            task = (await session.execute(select(AgentTask))).scalar_one()
+            task.locked_at = utc_now() - timedelta(seconds=task.timeout_seconds + 1)
+
+    response = await client.get(
+        f"/internal/v1/tasks/{task_id}/context",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 403
+
+
 async def test_malformed_output_is_rejected_by_the_contract(client):
     run, task_id, token = await _dispatch(client, "int-key-0013")
     payload = _output(task_id, run["run_id"])

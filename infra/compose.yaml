@@ -20,14 +20,20 @@ services:
       start_period: 5s
 
   control-api:
-    image: "${CONTROL_API_IMAGE:-rivexx/control-api-stub:local}"
+    image: "${CONTROL_API_IMAGE:-rivexx/control-api:local}"
     build:
-      context: ./stubs/control-api
+      context: ..
+      dockerfile: services/control-api/Dockerfile
     restart: unless-stopped
     environment:
       DATABASE_URL: "postgresql://${POSTGRES_USER:-rivexx}:${POSTGRES_PASSWORD:-local-development-only}@postgres:5432/${POSTGRES_DB:-rivexx}"
-      STUB_RUN_ID: "${RUN_ID:-11111111-1111-4111-8111-111111111111}"
-      STUB_TASK_TOKEN: "${TASK_TOKEN:-local-demo-task-token}"
+      PUBLIC_BASE_URL: "${PUBLIC_BASE_URL:-http://localhost:8000}"
+      RUNTIME_BACKEND: "docker"
+      SCHEDULER_ENABLED: "true"
+      SCHEDULER_IDLE_SECONDS: "${SCHEDULER_IDLE_SECONDS:-0.5}"
+      FAKE_WORKER_IMAGE: "${FAKE_WORKER_IMAGE:-rivexx/fake-worker:local}"
+      AGENT_NETWORK: "rivexx-squad_agent_net"
+      INTERNAL_BASE_URL: "http://control-api:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,6 +42,9 @@ services:
     volumes:
       - run_workspaces:/var/lib/rivexx/workspaces
       - run_artifacts:/var/lib/rivexx/artifacts
+      # O socket pertence somente ao plano de controle. O worker dinâmico não
+      # recebe este mount; `:ro` também impede alterações no inode do host.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
       - public_net
       - control_net
