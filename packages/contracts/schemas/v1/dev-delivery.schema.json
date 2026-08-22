@@ -2,8 +2,14 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://reply.local/contracts/v1/dev-delivery.schema.json",
   "title": "DevDelivery",
-  "type": "object", "additionalProperties": false,
-  "required": ["contract_version", "run_id", "story_id", "story_hash", "revision", "base_hash", "commit_hash", "manifest_hash", "criterion_verifications", "artifacts", "status"],
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version", "run_id", "story_id", "story_hash", "revision",
+    "base_hash", "commit_hash", "manifest_hash", "tasks", "changes",
+    "acceptance_evidence", "verification_runs", "adrs", "known_limitations",
+    "artifacts", "status"
+  ],
   "properties": {
     "contract_version": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"},
     "run_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"},
@@ -13,7 +19,77 @@
     "base_hash": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"},
     "commit_hash": {"type": "string", "pattern": "^[a-f0-9]{40,64}$"},
     "manifest_hash": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"},
-    "criterion_verifications": {"type": "array", "minItems": 1, "items": {"type": "object", "additionalProperties": false, "required": ["criterion_id", "command", "exit_code", "status"], "properties": {"criterion_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/criterionId"}, "command": {"type": "array", "minItems": 1, "items": {"type": "string"}}, "exit_code": {"type": "integer"}, "status": {"type": "string", "enum": ["PASS", "FAIL", "NOT_RUN"]}}}},
+    "tasks": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["task_id", "title", "criterion_ids", "changed_files", "state"],
+        "properties": {
+          "task_id": {"type": "string", "pattern": "^[A-Z][A-Z0-9-]{2,63}-T[0-9]+$"},
+          "title": {"type": "string", "minLength": 1, "maxLength": 200},
+          "criterion_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/criterionId"}},
+          "changed_files": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 500}},
+          "state": {"type": "string", "enum": ["DONE", "BLOCKED"]}
+        }
+      }
+    },
+    "changes": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["path", "summary", "task_ids"],
+        "properties": {
+          "path": {"type": "string", "minLength": 1, "maxLength": 500},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "task_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"type": "string"}}
+        }
+      }
+    },
+    "acceptance_evidence": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["criterion_id", "evidence_type", "status", "summary", "evidence_refs"],
+        "properties": {
+          "criterion_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/criterionId"},
+          "evidence_type": {"type": "string", "enum": ["test", "command", "screenshot", "inspection"]},
+          "status": {"type": "string", "enum": ["PASS", "FAIL", "NOT_RUN"]},
+          "summary": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "evidence_refs": {"type": "array", "items": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"}}
+        }
+      }
+    },
+    "verification_runs": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["execution", "exit_code", "duration_ms", "status", "evidence_refs"],
+        "properties": {
+          "execution": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/executionSpec"},
+          "exit_code": {"type": ["integer", "null"]},
+          "duration_ms": {"type": "integer", "minimum": 0},
+          "status": {"type": "string", "enum": ["PASS", "FAIL", "NOT_RUN"]},
+          "evidence_refs": {"type": "array", "items": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"}}
+        }
+      }
+    },
+    "adrs": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["adr_id", "title", "context", "options", "decision", "rationale", "consequences"],
+        "properties": {
+          "adr_id": {"type": "string", "pattern": "^ADR-[A-Z0-9-]+$"},
+          "title": {"type": "string", "minLength": 1, "maxLength": 200},
+          "context": {"type": "string", "minLength": 1, "maxLength": 4000},
+          "options": {"type": "array", "minItems": 2, "items": {"type": "string", "minLength": 1, "maxLength": 1000}},
+          "decision": {"type": "string", "minLength": 1, "maxLength": 2000},
+          "rationale": {"type": "string", "minLength": 1, "maxLength": 4000},
+          "consequences": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 1000}}
+        }
+      }
+    },
+    "known_limitations": {"type": "array", "items": {"type": "string", "minLength": 1, "maxLength": 2000}},
     "artifacts": {"type": "array", "items": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/artifactRef"}},
     "status": {"type": "string", "enum": ["READY_FOR_QA", "FAILED", "NEEDS_HUMAN"]}
   }

@@ -2,9 +2,45 @@
 #   filename:  dev-delivery.schema.json
 
 from __future__ import annotations
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 from enum import StrEnum
-from pydantic import BaseModel, ConfigDict, Field
 from . import common_schema
+
+
+class ChangedFile(RootModel[str]):
+    root: str = Field(..., max_length=500, min_length=1)
+
+
+class State(StrEnum):
+    DONE = 'DONE'
+    BLOCKED = 'BLOCKED'
+
+
+class Task(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    task_id: str = Field(..., pattern='^[A-Z][A-Z0-9-]{2,63}-T[0-9]+$')
+    title: str = Field(..., max_length=200, min_length=1)
+    criterion_ids: list[common_schema.CriterionId] = Field(..., min_length=1)
+    changed_files: list[ChangedFile]
+    state: State
+
+
+class Change(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    path: str = Field(..., max_length=500, min_length=1)
+    summary: str = Field(..., max_length=2000, min_length=1)
+    task_ids: list[str] = Field(..., min_length=1)
+
+
+class EvidenceType(StrEnum):
+    test = 'test'
+    command = 'command'
+    screenshot = 'screenshot'
+    inspection = 'inspection'
 
 
 class Status(StrEnum):
@@ -13,17 +49,54 @@ class Status(StrEnum):
     NOT_RUN = 'NOT_RUN'
 
 
-class CriterionVerification(BaseModel):
+class AcceptanceEvidenceItem(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
     )
     criterion_id: common_schema.CriterionId
-    command: list[str] = Field(..., min_length=1)
-    exit_code: int
+    evidence_type: EvidenceType
     status: Status
+    summary: str = Field(..., max_length=2000, min_length=1)
+    evidence_refs: list[common_schema.Uuid]
 
 
-class Status1(StrEnum):
+class VerificationRun(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    execution: common_schema.ExecutionSpec
+    exit_code: int | None
+    duration_ms: int = Field(..., ge=0)
+    status: Status
+    evidence_refs: list[common_schema.Uuid]
+
+
+class Option(RootModel[str]):
+    root: str = Field(..., max_length=1000, min_length=1)
+
+
+class Consequence(RootModel[str]):
+    root: str = Field(..., max_length=1000, min_length=1)
+
+
+class Adr(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    adr_id: str = Field(..., pattern='^ADR-[A-Z0-9-]+$')
+    title: str = Field(..., max_length=200, min_length=1)
+    context: str = Field(..., max_length=4000, min_length=1)
+    options: list[Option] = Field(..., min_length=2)
+    decision: str = Field(..., max_length=2000, min_length=1)
+    rationale: str = Field(..., max_length=4000, min_length=1)
+    consequences: list[Consequence]
+
+
+class KnownLimitation(RootModel[str]):
+    root: str = Field(..., max_length=2000, min_length=1)
+
+
+class Status2(StrEnum):
     READY_FOR_QA = 'READY_FOR_QA'
     FAILED = 'FAILED'
     NEEDS_HUMAN = 'NEEDS_HUMAN'
@@ -41,6 +114,11 @@ class DevDelivery(BaseModel):
     base_hash: common_schema.Sha256
     commit_hash: str = Field(..., pattern='^[a-f0-9]{40,64}$')
     manifest_hash: common_schema.Sha256
-    criterion_verifications: list[CriterionVerification] = Field(..., min_length=1)
+    tasks: list[Task] = Field(..., min_length=1)
+    changes: list[Change]
+    acceptance_evidence: list[AcceptanceEvidenceItem] = Field(..., min_length=1)
+    verification_runs: list[VerificationRun] = Field(..., min_length=1)
+    adrs: list[Adr]
+    known_limitations: list[KnownLimitation]
     artifacts: list[common_schema.ArtifactRef]
-    status: Status1
+    status: Status2

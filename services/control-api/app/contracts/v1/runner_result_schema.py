@@ -7,6 +7,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from . import common_schema
 
 
+class EnvironmentStatus(StrEnum):
+    READY = 'READY'
+    FAILED = 'FAILED'
+
+
 class Status(StrEnum):
     PASS = 'PASS'
     FAIL = 'FAIL'
@@ -27,12 +32,6 @@ class Result(BaseModel):
     evidence_refs: list[common_schema.Uuid]
 
 
-class Verdict(StrEnum):
-    ACCEPTED = 'ACCEPTED'
-    REJECTED = 'REJECTED'
-    NEEDS_HUMAN = 'NEEDS_HUMAN'
-
-
 class RunnerResult(BaseModel):
     model_config = ConfigDict(
         extra='forbid',
@@ -41,8 +40,10 @@ class RunnerResult(BaseModel):
     run_id: common_schema.Uuid
     story_id: common_schema.StoryId
     story_hash: common_schema.Sha256
+    revision: int = Field(..., ge=1)
     delivery_manifest_hash: common_schema.Sha256
     test_plan_hash: common_schema.Sha256
+    environment_status: EnvironmentStatus
+    overall_exit_code: int | None
     results: list[Result] = Field(..., min_length=1)
-    verdict: Verdict
     artifacts: list[common_schema.ArtifactRef]

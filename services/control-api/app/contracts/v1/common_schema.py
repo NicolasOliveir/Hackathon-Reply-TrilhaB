@@ -122,3 +122,30 @@ class ArtifactRef(BaseModel):
     media_type: str = Field(..., max_length=120, min_length=3)
     size_bytes: int = Field(..., ge=0)
     sha256: Sha256
+
+
+class ArgvItem(RootModel[str]):
+    root: str = Field(..., max_length=1000, min_length=1)
+
+
+class Profile(StrEnum):
+    python = 'python'
+    node = 'node'
+    api = 'api'
+    browser = 'browser'
+    generic = 'generic'
+
+
+class Environment(RootModel[str]):
+    root: str = Field(..., max_length=2000)
+
+
+class ExecutionSpec(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    argv: list[ArgvItem] = Field(..., max_length=64, min_length=1)
+    cwd: str = Field(..., pattern='^/(workspace|tests)(/.*)?$')
+    timeout_seconds: int = Field(..., ge=1, le=1800)
+    profile: Profile
+    environment: dict[str, Environment] | None = Field(None, max_length=32)
