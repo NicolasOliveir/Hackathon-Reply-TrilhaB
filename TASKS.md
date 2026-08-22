@@ -28,7 +28,7 @@ do desenvolvedor; `Branch` deve existir no remoto enquanto a tarefa estiver ativ
 | `I1-001` | Contratos e scaffold do monorepo | `CONCLUIDA` | MatheusSchimieguelSilva | `task/I1-001-contracts` | 2026-08-22 12:55 -03:00 | — | `packages/contracts/**` e manifests raiz acordados | Integrada na `main` em `3f59cd5`; 4 testes de contrato aprovados em 2026-08-22 14:26 -03:00 |
 | `I1-002` | Compose, redes e fake worker | `EM_ANDAMENTO` | MatheusSchimieguelSilva | `task/I1-002-compose-worker` | 2026-08-22 14:26 -03:00 | — | `infra/**`, `services/agent-worker/**` | Reserva publicada para implementar Compose, redes isoladas e fake worker não-root. |
 | `I1-003` | Painel React responsivo com mocks | `EM_REVISAO` | Nicolau Codex | `task/I1-003-painel-react` | 2026-08-22 14:05 -03:00 | — | `apps/control-panel/**` | Branch publicada em `8d628bd`; lint, typecheck, 6 testes e build aprovados; aguardando revisão/merge. |
-| `I1-004` | PostgreSQL, event store e API de runs | `LIVRE` | — | — | — | `I1-001` | `services/control-api/app/persistence/**`, `api/runs/**`, migrations | — |
+| `I1-004` | PostgreSQL, event store e API de runs | `LIVRE` | Arthur Monteiro | — | — | `I1-001` | `services/control-api/app/persistence/**`, `api/runs/**`, migrations | — |
 | `I1-005` | ContainerRuntime e despacho do fake worker | `LIVRE` | — | — | — | `I1-001`, `I1-002`, `I1-004` | `services/control-api/app/runtime/**`, `orchestration/**` | — |
 | `I1-006` | SSE e integração da timeline | `LIVRE` | — | — | — | `I1-003`, `I1-004` | endpoint SSE + integração de eventos no painel | — |
 | `I1-007` | E2E da fatia distribuída e isolamento | `LIVRE` | — | — | — | `I1-002`, `I1-005`, `I1-006` | `tests/e2e/**` e roteiro da fatia 1 | — |
