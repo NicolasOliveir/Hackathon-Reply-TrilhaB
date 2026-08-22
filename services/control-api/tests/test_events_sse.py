@@ -183,6 +183,22 @@ async def test_mobile_panel_origin_can_preflight_run_creation(client):
     assert "Idempotency-Key" in response.headers["access-control-allow-headers"]
 
 
+async def test_mobile_panel_can_preflight_sse_resume_header(client):
+    response = await client.options(
+        f"/api/v1/runs/{uuid.uuid4()}/events",
+        headers={
+            "Origin": "http://192.168.1.20:5173",
+            "Access-Control-Request-Method": "GET",
+            "Access-Control-Request-Headers": "last-event-id",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
+    assert "GET" in response.headers["access-control-allow-methods"]
+    assert "Last-Event-ID" in response.headers["access-control-allow-headers"]
+
+
 async def test_openapi_exposes_sse_resume_header():
     from app.main import create_app
 
