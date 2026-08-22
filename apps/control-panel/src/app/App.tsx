@@ -153,8 +153,8 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
     <main className="shell">
       <header className="topbar">
         <div>
-          <p className="eyebrow">CONTROL PLANE</p>
-          <h1>Orquestrador</h1>
+          <p className="eyebrow">CRIE SUA SOLUÇÃO</p>
+          <h1>Construtor de aplicações</h1>
         </div>
         <ConnectionStatus state={connection} />
       </header>
@@ -165,13 +165,13 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
         <section className="summary card" aria-labelledby="request-status-title">
           <div className="section-heading">
             <div>
-              <p className="eyebrow">EXECUCAO ATUAL</p>
-              <h2 id="request-status-title">Resumo</h2>
+              <p className="eyebrow">SUA SOLUÇÃO</p>
+              <h2 id="request-status-title">Estamos começando</h2>
             </div>
           </div>
           {phase === 'loading' ? (
             <p className="notice" role="status">
-              Criando execução e conectando à linha do tempo…
+              Preparando sua solicitação…
             </p>
           ) : (
             <div className="error-panel" role="alert">
@@ -180,7 +180,7 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
           )}
           {phase === 'error' && (
             <button className="retry" onClick={retry}>
-              Tentar novamente
+              Tentar de novo
             </button>
           )}
         </section>

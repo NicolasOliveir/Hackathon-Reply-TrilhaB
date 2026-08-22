@@ -35,16 +35,16 @@ export function RunForm({ onSubmit, onError }: RunFormProps) {
   return (
     <section className="briefing-page" aria-labelledby="briefing-title">
       <div className="briefing-intro">
-        <span className="step-badge">1 de 1 · Conte sua necessidade</span>
-        <h2 id="briefing-title">O que você precisa melhorar no trabalho?</h2>
+        <span className="step-badge">Conte sua ideia</span>
+        <h2 id="briefing-title">Que solução você quer criar?</h2>
         <p className="briefing-lead">
-          Conte o problema do seu jeito. Não precisa usar termos técnicos.
+          Explique o problema do seu jeito. Nós cuidamos da parte técnica.
         </p>
       </div>
 
       <form className="briefing-card" onSubmit={submit} noValidate>
         <div className="field-heading">
-          <label htmlFor="briefing">Descreva sua necessidade</label>
+          <label htmlFor="briefing">Conte o que a aplicação precisa fazer</label>
           <span className={remaining > 0 ? 'character-count' : 'character-count complete'} aria-live="polite">
             {remaining > 0 ? `Faltam ${remaining}` : 'Descrição suficiente'}
           </span>
@@ -65,11 +65,11 @@ export function RunForm({ onSubmit, onError }: RunFormProps) {
         </div>
         {error && <p id="briefing-error" className="form-error" role="alert">{error}</p>}
         <div className="submit-area">
-          <button type="submit" className="primary-action">Enviar e acompanhar <span aria-hidden="true">→</span></button>
-          <p><span aria-hidden="true">✓</span> O texto não será apagado se ocorrer algum erro.</p>
+          <button type="submit" className="primary-action">Começar a criar <span aria-hidden="true">→</span></button>
+          <p><span aria-hidden="true">✓</span> Você acompanhará o progresso nesta tela.</p>
         </div>
         <details className="demo-tools">
-          <summary>Opções de demonstração</summary>
+        <summary>Recursos para demonstração</summary>
           <button type="button" className="secondary" onClick={() => onError(value)}>Simular erro de conexão</button>
         </details>
       </form>
