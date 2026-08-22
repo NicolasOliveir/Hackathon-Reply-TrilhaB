@@ -104,8 +104,8 @@ responder com o resultado do outro.
 O scheduler (`app/orchestration/scheduler.py`) executa uma tentativa assim:
 
 1. reivindica uma `agent_task` com `FOR UPDATE SKIP LOCKED`;
-2. emite o token de tarefa e grava só o hash;
-3. get-or-create de `agent_executions` por `(task_id, attempt)`;
+2. faz get-or-create de `agent_executions` por `(task_id, attempt)`;
+3. apenas em execução nova, emite o token de tarefa e grava só o hash;
 4. `create` do container — o `container_id` precisa existir antes do `start`;
 5. grava `AGENT_STARTED` e **commita**;
 6. `start`, `wait`, registro do exit code, remoção do container.
@@ -159,4 +159,6 @@ Uvicorn criaria vários consumidores competindo pela mesma fila.
 - `agent_tasks` usa `available_at`, `locked_at` e `locked_by` no consumo com
   `FOR UPDATE SKIP LOCKED`;
 - `agent_tasks.token_hash` guarda só o hash do token de tarefa;
+- o estado terminal revoga acesso ao contexto; o hash é retido até o timeout
+  somente para reconhecer uma repetição idempotente do mesmo callback;
 - `app/main.py` registra juntos os routers público, interno e SSE.

@@ -40,7 +40,13 @@ def _bearer(authorization: str | None) -> str:
     return authorization.split(" ", 1)[1].strip()
 
 
-async def _authenticate(session, task_id: uuid.UUID, authorization: str | None):
+async def _authenticate(
+    session,
+    task_id: uuid.UUID,
+    authorization: str | None,
+    *,
+    allow_terminal_replay: bool = False,
+):
     """Autentica o portador contra a tarefa pedida.
 
     A mesma resposta 403 cobre token inválido e tarefa inexistente: distinguir
@@ -50,7 +56,17 @@ async def _authenticate(session, task_id: uuid.UUID, authorization: str | None):
     task = (
         await session.execute(select(AgentTask).where(AgentTask.task_id == task_id))
     ).scalar_one_or_none()
-    if task is None or not tokens.matches(presented, task.token_hash):
+    expired = (
+        task is None
+        or task.locked_at is None
+        or utc_now() >= task.locked_at + timedelta(seconds=task.timeout_seconds)
+    )
+    if (
+        task is None
+        or not tokens.matches(presented, task.token_hash)
+        or expired
+        or (not allow_terminal_replay and task.state != "RUNNING")
+    ):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Token sem escopo ou vinculado a outra tarefa.",
@@ -85,7 +101,7 @@ async def get_task_context(
             "role": task.role,
             "issued_at": issued.isoformat().replace("+00:00", "Z"),
             "expires_at": (
-                issued + timedelta(seconds=task.timeout_seconds)
+                task.locked_at + timedelta(seconds=task.timeout_seconds)
             )
             .isoformat()
             .replace("+00:00", "Z"),
@@ -121,7 +137,9 @@ async def submit_task_output(
     authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
     async with transaction() as session:
-        task = await _authenticate(session, task_id, authorization)
+        task = await _authenticate(
+            session, task_id, authorization, allow_terminal_replay=True
+        )
 
         if str(payload.task_id.root) != str(task.task_id):
             raise HTTPException(
@@ -199,8 +217,9 @@ async def submit_task_output(
 
         task.state = "SUCCEEDED" if payload.status == "SUCCEEDED" else "FAILED"
         task.updated_at = utc_now()
-        # O token morre com o encerramento da tarefa (ORQUESTRADOR §8.1).
-        task.token_hash = None
+        # O estado terminal revoga as capacidades de contexto. O hash fica
+        # somente para autenticar uma repetição idempotente do mesmo callback;
+        # uma nova saída continua recusada pela máquina de estados.
 
         accepted = {"accepted": True, "run_state": run.state}
         await idempotency.record_response(

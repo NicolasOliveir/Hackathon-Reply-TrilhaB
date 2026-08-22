@@ -1,37 +1,49 @@
 # Infraestrutura local
 
-O Compose mantém os serviços fixos do MVP e uma execução manual do `fake-worker`. O
-`control-api` e o `control-panel` usam placeholders mínimos até as implementações próprias serem
-integradas.
+O Compose mantém os serviços fixos do MVP e a imagem do `fake-worker`. O
+`control-api` executa a aplicação real, aplica as migrations e usa o Docker do
+host para criar workers efêmeros; o `control-panel` continua no container
+provisório até a montagem E2E da `I1-007`.
 
 ## Serviços fixos
 
 ```bash
 docker compose -f infra/compose.yaml config
+docker compose -f infra/compose.yaml --profile manual build fake-worker
 docker compose -f infra/compose.yaml up --build -d
 docker compose -f infra/compose.yaml ps
 ```
 
 - painel: <http://127.0.0.1:4173>;
-- API stub: <http://127.0.0.1:8000/health>;
+- API: <http://127.0.0.1:8000/health>;
 - PostgreSQL: acessível apenas por `control-api` na `control_net`.
 
 Os valores padrão são exclusivamente locais. Defina `POSTGRES_PASSWORD`, `RUN_ID`, `TASK_ID` e
 `TASK_TOKEN` no ambiente para substituí-los; não versione um arquivo `.env` real.
 
-## Prova manual do worker
+## Despacho do worker
 
-Com os serviços fixos saudáveis:
+Com os serviços fixos saudáveis, criar um run gera a task que o scheduler
+consome. O `control-api` cria o container a partir da imagem já construída,
+entrega somente as quatro variáveis autorizadas e recebe o callback pela
+`agent_net`:
 
 ```bash
-docker compose -f infra/compose.yaml --profile manual build fake-worker
-docker compose -f infra/compose.yaml --profile manual run --rm fake-worker
+curl -i -X POST http://127.0.0.1:8000/api/v1/runs \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: local-demo-0001' \
+  -d '{"contract_version":"1.0.0","briefing":"Validar a primeira fatia distribuída do orquestrador."}'
 docker compose -f infra/compose.yaml logs control-api
 ```
 
 O worker busca seu contexto autorizado e envia `FakeWorkerOutput` ao endpoint central. Ele entra
 somente na `agent_net`, recebe quatro variáveis de tarefa e não possui banco, Docker socket,
 capabilities Linux ou execução como root.
+
+O mount `/var/run/docker.sock` concede ao `control-api` autoridade equivalente
+à do daemon no host. Esta é uma decisão local explícita do MVP; o mount nunca é
+propagado aos workers. Em uma evolução para AWS, este adapter será substituído
+por uma API de execução gerenciada.
 
 Para encerrar e preservar os dados do PostgreSQL:
 

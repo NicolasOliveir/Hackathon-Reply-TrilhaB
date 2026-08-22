@@ -3,9 +3,9 @@
 Ciclo de uma tentativa:
 
 1. reivindica uma `agent_task` pendente com `FOR UPDATE SKIP LOCKED`;
-2. emite o token de tarefa e grava só o hash;
-3. get-or-create de `agent_executions` por `(task_id, attempt)` — é isso que
+2. get-or-create de `agent_executions` por `(task_id, attempt)` — é isso que
    torna o despacho idempotente quando o nó é retomado;
+3. para uma execução nova, emite o token de tarefa e grava só o hash;
 4. `create` do container, para obter o `container_id`;
 5. grava `AGENT_STARTED` e **commita** antes do `start` — o worker não pode
    chamar de volta antes de existir o evento que explica sua execução;
@@ -164,8 +164,12 @@ class Scheduler:
                 execution, reused = await self._get_or_create_execution(
                     session, task, self._settings.fake_worker_image
                 )
-                issued = tokens.issue()
-                task.token_hash = issued.hashed
+                already_started = execution.container_id is not None
+                token: str | None = None
+                if not already_started:
+                    issued = tokens.issue()
+                    task.token_hash = issued.hashed
+                    token = issued.plaintext
 
                 claimed = _ClaimedTask(
                     task_id=task.task_id,
@@ -175,8 +179,9 @@ class Scheduler:
                     role=task.role,
                     execution_id=execution.execution_id,
                     reused=reused,
-                    token=issued.plaintext,
-                    already_started=execution.container_id is not None,
+                    token=token,
+                    existing_container_id=execution.container_id,
+                    already_started=already_started,
                 )
 
         if claimed.already_started:
@@ -185,7 +190,7 @@ class Scheduler:
             return DispatchResult(
                 task_id=claimed.task_id,
                 run_id=claimed.run_id,
-                container_id=None,
+                container_id=claimed.existing_container_id,
                 exit_code=None,
                 timed_out=False,
                 reused_execution=True,
@@ -194,22 +199,37 @@ class Scheduler:
         return await self._run_container(claimed)
 
     async def _run_container(self, claimed: "_ClaimedTask") -> DispatchResult:
+        if claimed.token is None:  # defesa: retomadas não chegam a este método
+            raise RuntimeError("despacho novo sem token de tarefa")
+
         spec = self._build_spec(
             _TaskView(claimed), claimed.run_id, claimed.token
         )
-        handle = await self._runtime.create(spec)
-
-        # Commitado antes do start: o callback do worker só pode chegar depois
-        # de AGENT_STARTED existir no log.
-        await self._record_started(claimed, handle.container_id)
-
+        handle = None
         try:
+            handle = await self._runtime.create(spec)
+
+            # Commitado antes do start: o callback do worker só pode chegar depois
+            # de AGENT_STARTED existir no log.
+            await self._record_started(claimed, handle.container_id)
             await self._runtime.start(handle)
             result = await self._runtime.wait(
                 handle, timeout_seconds=claimed.timeout_seconds
             )
-        finally:
-            await self._runtime.remove(handle)
+        except Exception as exc:
+            if handle is not None:
+                try:
+                    await self._runtime.remove(handle)
+                except Exception:  # noqa: BLE001 - preserva a falha original
+                    pass
+            await self._record_runtime_failure(
+                claimed,
+                container_id=handle.container_id if handle is not None else None,
+                reason=f"{type(exc).__name__}: {exc}",
+            )
+            raise
+
+        await self._runtime.remove(handle)
 
         await self._record_finished(claimed, result)
         return DispatchResult(
@@ -287,13 +307,12 @@ class Scheduler:
                 # Saída limpa não conclui nada por si: quem conclui é o callback
                 # validado, que já pode ter movido o run para COMPLETED.
                 if result.succeeded:
-                    if task.state == "RUNNING":
-                        task.state = "SUCCEEDED"
-                        task.updated_at = utc_now()
                     return
 
-                task.state = "TIMED_OUT" if result.timed_out else "FAILED"
-                task.updated_at = utc_now()
+                if task.state == "RUNNING":
+                    task.state = "TIMED_OUT" if result.timed_out else "FAILED"
+                    task.token_hash = None
+                    task.updated_at = utc_now()
                 if self._state_machine.accepts(run.state, "AGENT_FAILED"):
                     store = EventStore(session, self._state_machine)
                     await store.append(
@@ -314,6 +333,62 @@ class Scheduler:
                         ],
                     )
 
+    async def _record_runtime_failure(
+        self,
+        claimed: "_ClaimedTask",
+        *,
+        container_id: str | None,
+        reason: str,
+    ) -> None:
+        """Finaliza uma tentativa cuja infraestrutura falhou.
+
+        Sem esta compensação, falhas de imagem, socket, rede ou `start` deixam
+        a linha reivindicada em `RUNNING` para sempre e o laço nunca a encontra
+        novamente.
+        """
+        async with self._sessions() as session:
+            async with session.begin():
+                execution = await session.get(AgentExecution, claimed.execution_id)
+                if execution is not None:
+                    if execution.container_id is None:
+                        execution.container_id = container_id
+                    execution.state = "FAILED"
+                    execution.reason = reason
+                    execution.finished_at = utc_now()
+
+                task = await session.get(AgentTask, claimed.task_id)
+                if task is not None and task.state == "RUNNING":
+                    task.state = "FAILED"
+                    task.token_hash = None
+                    task.updated_at = utc_now()
+
+                run = (
+                    await session.execute(
+                        select(Run)
+                        .where(Run.run_id == claimed.run_id)
+                        .with_for_update()
+                    )
+                ).scalar_one()
+                if self._state_machine.accepts(run.state, "AGENT_FAILED"):
+                    store = EventStore(session, self._state_machine)
+                    await store.append(
+                        run,
+                        [
+                            EventDraft(
+                                type="AGENT_FAILED",
+                                task_id=claimed.task_id,
+                                payload={
+                                    "attempt": claimed.attempt,
+                                    "exit_code": None,
+                                    "timed_out": False,
+                                    "reason": reason,
+                                },
+                                meta={"container_id": container_id},
+                                drives_transition=True,
+                            )
+                        ],
+                    )
+
 
 @dataclass(frozen=True)
 class _ClaimedTask:
@@ -324,7 +399,8 @@ class _ClaimedTask:
     role: str
     execution_id: uuid.UUID
     reused: bool
-    token: str
+    token: str | None
+    existing_container_id: str | None
     already_started: bool
 
 

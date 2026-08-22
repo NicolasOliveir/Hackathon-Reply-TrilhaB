@@ -182,24 +182,104 @@ async def test_retry_does_not_create_a_second_execution(client):
     await _create_run(client, "sched-key-0008")
     runtime = _runtime()
     scheduler = _scheduler(runtime)
-    await scheduler.dispatch_next()
+    first = await scheduler.dispatch_next()
 
     async with get_session_factory()() as session:
         async with session.begin():
             task = (await session.execute(select(AgentTask))).scalar_one()
+            original_token_hash = task.token_hash
             task.state = "PENDING"
 
     second = await scheduler.dispatch_next()
 
     assert second is not None
     assert second.reused_execution is True
+    assert second.container_id == first.container_id
     assert runtime.created_count == 1, "não pode subir um segundo container"
 
     async with get_session_factory()() as session:
         executions = await session.scalar(
             select(func.count()).select_from(AgentExecution)
         )
+        task = (await session.execute(select(AgentTask))).scalar_one()
     assert executions == 1
+    assert task.token_hash == original_token_hash, (
+        "retomada não pode invalidar o token que já está no container"
+    )
+
+
+async def test_clean_exit_without_callback_keeps_task_awaiting_output(client):
+    from app.db import get_session_factory
+    from app.persistence.models import AgentTask, Run
+
+    await _create_run(client, "sched-key-clean-exit")
+    await _scheduler(_runtime()).dispatch_next()
+
+    async with get_session_factory()() as session:
+        task = (await session.execute(select(AgentTask))).scalar_one()
+        run = (await session.execute(select(Run))).scalar_one()
+
+    assert task.state == "RUNNING"
+    assert run.state == "WORKER_RUNNING"
+
+
+async def test_create_failure_does_not_leave_task_claimed_forever(client):
+    from app.db import get_session_factory
+    from app.persistence.models import AgentExecution, AgentTask, Run
+    from app.runtime.base import RuntimeError_
+    from app.runtime.fake_runtime import FakeContainerRuntime
+
+    class CreateFailureRuntime(FakeContainerRuntime):
+        async def create(self, spec):
+            raise RuntimeError_("imagem indisponível")
+
+    await _create_run(client, "sched-key-create-failure")
+    runtime = CreateFailureRuntime(
+        allowed_images=_runtime().allowed_images
+    )
+
+    with pytest.raises(RuntimeError_, match="imagem indisponível"):
+        await _scheduler(runtime).dispatch_next()
+
+    async with get_session_factory()() as session:
+        task = (await session.execute(select(AgentTask))).scalar_one()
+        run = (await session.execute(select(Run))).scalar_one()
+        execution = (await session.execute(select(AgentExecution))).scalar_one()
+
+    assert task.state == "FAILED"
+    assert run.state == "FAILED"
+    assert execution.state == "FAILED"
+    assert execution.container_id is None
+
+
+async def test_start_failure_removes_container_and_finalizes_task(client):
+    from app.db import get_session_factory
+    from app.persistence.models import AgentExecution, AgentTask, Run
+    from app.runtime.base import RuntimeError_
+    from app.runtime.fake_runtime import FakeContainerRuntime
+
+    class StartFailureRuntime(FakeContainerRuntime):
+        async def start(self, handle):
+            raise RuntimeError_("daemon recusou start")
+
+    await _create_run(client, "sched-key-start-failure")
+    runtime = StartFailureRuntime(
+        allowed_images=_runtime().allowed_images
+    )
+
+    with pytest.raises(RuntimeError_, match="daemon recusou start"):
+        await _scheduler(runtime).dispatch_next()
+
+    async with get_session_factory()() as session:
+        task = (await session.execute(select(AgentTask))).scalar_one()
+        run = (await session.execute(select(Run))).scalar_one()
+        execution = (await session.execute(select(AgentExecution))).scalar_one()
+
+    assert runtime.removed_count == 1
+    assert task.state == "FAILED"
+    assert run.state == "FAILED"
+    assert execution.state == "FAILED"
+    assert execution.container_id is not None
 
 
 async def test_non_zero_exit_fails_the_run(client):

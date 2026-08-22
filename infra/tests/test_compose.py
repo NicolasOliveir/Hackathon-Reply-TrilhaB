@@ -11,6 +11,9 @@ COMPOSE_PATH = Path(__file__).resolve().parents[1] / "compose.yaml"
 WORKER_DOCKERFILE = (
     Path(__file__).resolve().parents[2] / "services" / "agent-worker" / "Dockerfile"
 )
+CONTROL_API_DOCKERFILE = (
+    Path(__file__).resolve().parents[2] / "services" / "control-api" / "Dockerfile"
+)
 
 
 class ComposeTopologyTestCase(unittest.TestCase):
@@ -52,6 +55,24 @@ class ComposeTopologyTestCase(unittest.TestCase):
         self.assertEqual(worker["cap_drop"], ["ALL"])
         self.assertIn("no-new-privileges:true", worker["security_opt"])
         self.assertEqual(worker["profiles"], ["manual"])
+
+    def test_only_control_api_receives_the_docker_socket(self) -> None:
+        control_api = self.services["control-api"]
+        self.assertIn(
+            "/var/run/docker.sock:/var/run/docker.sock:ro",
+            control_api["volumes"],
+        )
+        self.assertNotIn("/var/run/docker.sock", str(self.services["fake-worker"]))
+        self.assertEqual(control_api["environment"]["RUNTIME_BACKEND"], "docker")
+        self.assertEqual(control_api["environment"]["SCHEDULER_ENABLED"], "true")
+
+    def test_control_api_uses_the_real_application_image(self) -> None:
+        build = self.services["control-api"]["build"]
+        self.assertEqual(build["context"], "..")
+        self.assertEqual(build["dockerfile"], "services/control-api/Dockerfile")
+        dockerfile = CONTROL_API_DOCKERFILE.read_text(encoding="utf-8")
+        self.assertIn("app.main:app", dockerfile)
+        self.assertIn("alembic upgrade head", dockerfile)
 
     def test_declares_persistent_runtime_volumes(self) -> None:
         self.assertEqual(
