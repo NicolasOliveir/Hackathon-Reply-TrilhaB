@@ -115,7 +115,7 @@ class Scheduler:
         return execution, False
 
     def _build_spec(
-        self, task: AgentTask, run_id: uuid.UUID, token: str
+        self, task: AgentTask, run_id: uuid.UUID, token: str, image: str
     ) -> ContainerSpec:
         """Monta o ambiente do container por lista explícita.
 
@@ -124,7 +124,7 @@ class Scheduler:
         vira exceção em vez de achado de revisão.
         """
         return ContainerSpec(
-            image=self._settings.fake_worker_image,
+            image=image,
             environment={
                 "RUN_ID": str(run_id),
                 "TASK_ID": str(task.task_id),
@@ -161,9 +161,8 @@ class Scheduler:
                     )
                 ).scalar_one()
 
-                execution, reused = await self._get_or_create_execution(
-                    session, task, self._settings.fake_worker_image
-                )
+                image = self._settings.po_worker_image if task.role == "po" else self._settings.fake_worker_image
+                execution, reused = await self._get_or_create_execution(session, task, image)
                 already_started = execution.container_id is not None
                 token: str | None = None
                 if not already_started:
@@ -182,6 +181,7 @@ class Scheduler:
                     token=token,
                     existing_container_id=execution.container_id,
                     already_started=already_started,
+                    image=image,
                 )
 
         if claimed.already_started:
@@ -203,7 +203,7 @@ class Scheduler:
             raise RuntimeError("despacho novo sem token de tarefa")
 
         spec = self._build_spec(
-            _TaskView(claimed), claimed.run_id, claimed.token
+            _TaskView(claimed), claimed.run_id, claimed.token, claimed.image
         )
         handle = None
         try:
@@ -268,7 +268,7 @@ class Scheduler:
                             payload={
                                 "role": claimed.role,
                                 "attempt": claimed.attempt,
-                                "image": self._settings.fake_worker_image,
+                                "image": claimed.image,
                                 "execution_id": str(claimed.execution_id),
                             },
                             meta={"container_id": container_id},
@@ -402,6 +402,7 @@ class _ClaimedTask:
     token: str | None
     existing_container_id: str | None
     already_started: bool
+    image: str
 
 
 class _TaskView:
