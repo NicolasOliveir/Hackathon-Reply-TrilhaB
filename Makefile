@@ -1,5 +1,5 @@
 .PHONY: contracts-test contracts-check contracts-codegen \
-        api-db-up api-db-down api-migrate api-test api-run
+        api-db-up api-db-down api-migrate api-test api-run e2e
 
 PYTHON ?= python3
 API_DIR := services/control-api
@@ -45,3 +45,6 @@ api-test:
 
 api-run:
 	cd $(API_DIR) && $(PYTHON) -m uvicorn app.main:app --reload --port 8000
+
+e2e:
+	./tests/e2e/run.sh
