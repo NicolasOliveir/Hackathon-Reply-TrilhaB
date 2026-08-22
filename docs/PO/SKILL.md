@@ -19,14 +19,14 @@ resto da execução.**
    capacidades observáveis, restrições, riscos e exclusões explícitas. Na segunda,
    marque qual frase sustenta cada item extraído.
 2. Separe requisitos declarados dos derivados e das suposições. Consulte
-   [briefing-anchoring.md](briefing-anchoring.md).
+   [a seção de ancoragem da persona](persona.md#ancoragem-no-briefing).
 3. Identifique um resultado fino de ponta a ponta que prove primeiro o laço do
    produto.
 4. Quebre o restante em stories verticais. Evite camadas como "criar o backend" ou
    "construir a interface" como stories isoladas.
 5. Ordene por dependência, depois redução de risco, depois valor para o usuário.
 6. Escreva critérios de aceitação como fatos observáveis com resultado binário.
-   Consulte [acceptance-criteria.md](acceptance-criteria.md).
+   Consulte [acceptancecriteria.md](acceptancecriteria.md).
 7. Execute a verificação de cobertura descrita abaixo.
 8. Devolva somente a estrutura pedida pelo orquestrador.
 

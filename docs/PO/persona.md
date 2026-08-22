@@ -40,8 +40,7 @@ observado trava a validação e reprova a story por um defeito seu, não do Deve
 - Cite campo, valor, estado ou mensagem concreta — não adjetivos.
 - Prefira de três a seis critérios precisos a uma lista longa de implementação.
 - Inclua o caso negativo ou de borda quando ele muda a correção visível.
-- Consulte `.agents/skills/backlog-decomposition/acceptance-criteria.md` antes de
-  escrever.
+- Consulte [acceptancecriteria.md](acceptancecriteria.md) antes de escrever.
 
 ## Ordenação e cobertura
 

@@ -1,8 +1,9 @@
 # SPEC — Squad Autônomo de Agentes · Projeto Rivexx
 
 > **Status do documento:** rascunho colaborativo
-> **Última atualização:** `AAAA-MM-DD` por `@quem`
+> **Última atualização:** 2026-08-22 — consolidação dos artefatos do PO Agent
 > **Regra:** nada aqui é decidido até estar marcado `DECIDIDO`. Toda mudança em seção `DECIDIDO` vira ADR nova, não edição silenciosa.
+> **Leitura do enunciado, superfície de ataque do avaliador e recomendações abertas:** [ENTENDIMENTO.md](ENTENDIMENTO.md) — análise, não decisão.
 
 ---
 
@@ -38,6 +39,10 @@ Convenção de PR: uma seção por PR. Título `spec: <seção>`. Discussão fic
 
 > ⚠️ Restrição sem meio de verificação é decoração. Preencher a coluna direita é pré-requisito para o QA Agent existir de verdade.
 
+O guia [acceptancecriteria.md](PO/acceptancecriteria.md) contém exemplos úteis para `R1`–`R4`,
+mas eles são padrões de escrita, não metas de produto aprovadas. As verificações acima continuam
+abertas até que seus valores objetivos sejam acordados e registrados nesta ESPEC.
+
 ---
 
 ## 2. O que estamos entregando
@@ -52,7 +57,27 @@ Mapeamento entregável → artefato no repo.
 | Log de decisões técnicas | projeção do event log | Dev Agent | `TODO` |
 | Relatório de QA com evidências | projeção do event log | QA Agent + runner | `TODO` |
 
-**Princípio:** os quatro últimos são *views* sobre o mesmo event log. Não são arquivos mantidos à mão.
+**Princípio:** os três últimos são *views* sobre o mesmo event log. Não são arquivos mantidos à mão.
+
+### 2.1 Artefatos de definição dos agentes
+
+O contrato entre agentes pertence a esta especificação. Prompts, personas e instruções
+operacionais ficam próximos de cada agente e devem implementar esse contrato, sem redefini-lo.
+
+| Artefato atual | Responsabilidade | Status |
+|---|---|---|
+| [`docs/PO/persona.md`](PO/persona.md) | missão, autoridade e limites de contexto do PO | rascunho avançado |
+| [`docs/PO/SKILL.md`](PO/SKILL.md) | procedimento de decomposição do briefing | rascunho avançado |
+| [`docs/PO/acceptancecriteria.md`](PO/acceptancecriteria.md) | regras para critérios de aceitação verificáveis | rascunho avançado |
+| Dev Agent | persona, instruções e contrato operacional | `TODO` |
+| QA Agent | persona, instruções e contrato operacional | `TODO` |
+
+O [mapa dos artefatos do PO](PO/README.md) explicita a precedência entre esses documentos e a
+ESPEC.
+
+Enquanto ADR-003 estiver aberta, `docs/PO` é a fonte de design do agente. Quando o runtime for
+criado, `/squad/agents/po` deverá carregar esses artefatos diretamente ou empacotá-los de forma
+automatizada; não deve existir uma segunda cópia mantida manualmente.
 
 ---
 
@@ -62,11 +87,16 @@ Mapeamento entregável → artefato no repo.
 
 ```
 /
-├── SPEC.md                  ← este documento
 ├── README.md                ← como rodar a demo (escrever por último)
+├── /docs
+│   ├── DESCRICAO-TAREFA.md  ← fonte do desafio; não editar
+│   ├── ENTENDIMENTO.md      ← análise de avaliação; não contém decisões
+│   ├── ESPEC.md             ← este documento; contrato entre agentes
+│   ├── /PO                  ← persona e instruções operacionais do PO Agent
+│   └── /adr                 ← decisões da equipe humana
 ├── /squad
 │   ├── /agents
-│   │   ├── po/              ← prompt, schema, exemplos
+│   │   ├── po/              ← carregamento runtime dos contratos em docs/PO
 │   │   ├── dev/
 │   │   └── qa/
 │   ├── /graph               ← máquina de estados, transições
@@ -77,9 +107,7 @@ Mapeamento entregável → artefato no repo.
 │   ├── /platform            ← construído por humanos (scaffold)
 │   └── /features            ← escrito pelo Dev Agent ao vivo
 ├── /tests                   ← escrito pelo QA Agent, executado pelo runner
-├── /seeds                   ← dados sintéticos Rivexx
-└── /docs
-    └── /adr                 ← decisões da equipe humana
+└── /seeds                   ← dados sintéticos Rivexx
 ```
 
 ---
@@ -87,6 +115,10 @@ Mapeamento entregável → artefato no repo.
 ## 4. Decisões de arquitetura (ADRs da equipe humana)
 
 > Não confundir com o log de ADRs do Dev Agent. Este é o nosso.
+
+**Ordem de resolução** (derivada dos bloqueios abaixo, detalhada em [ENTENDIMENTO.md](ENTENDIMENTO.md) §5):
+ADR-003 e ADR-001 destravam a estrutura do repo e o cronograma → ADR-002 e ADR-004 fecham o contrato do QA → ADR-005 corre em paralelo (é local ao app).
+A coluna "como se verifica" de `R1`–`R4` na §1 bloqueia o contrato do QA sem estar numerada como ADR.
 
 ### ADR-001 — Escopo do que o squad gera ao vivo
 **Status:** `ABERTO` · dono `@quem`
@@ -152,7 +184,10 @@ Envelope proposto — revisar em grupo:
 | `BRIEFING_RECEIVED` | system | `TODO` |
 | `STORY_CREATED` | po | story completa |
 | `BACKLOG_PRIORITIZED` | po | ordem + justificativas |
+| `PO_DECISION_RECORDED` | po | título, tipo, justificativa, alternativa descartada |
 | `PREMISSA_ASSUMIDA` | po | lacuna, premissa, risco |
+| `CAPACIDADE_ADIADA` | po | capacidade, origem, motivo do corte |
+| `BACKLOG_COVERAGE_CHECKED` | po | capacidade/restrição → story + critério ou decisão |
 | `STORY_FROZEN` | po | id, hash dos critérios |
 | `STORY_ASSIGNED` | system | `TODO` |
 | `ADR_RECORDED` | dev | `TODO` |
@@ -182,20 +217,26 @@ Matriz do que cada agente pode ler. **Preencher em conjunto — é aqui que os p
 
 ## 6. Contratos de agente
 
-### 6.1 PO Agent — `RASCUNHO AVANÇADO`
+### 6.1 PO Agent — `RASCUNHO AVANÇADO · ARTEFATOS CRIADOS`
+
+**Artefatos operacionais:** [mapa](PO/README.md) · [persona](PO/persona.md) ·
+[decomposição de backlog](PO/SKILL.md) · [critérios de aceitação](PO/acceptancecriteria.md).
+Esta seção é o contrato compartilhado; os artefatos operacionais detalham como o PO o cumpre.
 
 **Contrato em uma frase:** traduz prosa de cliente em obrigações verificáveis. Único nó que lê o briefing. Único que cria e prioriza trabalho. Nunca decide *como*. Nunca declara pronto.
 
 **Funções:**
 
-1. Interpretar o briefing e extrair problemas de negócio, não soluções.
-2. Decompor em stories `como / quero / para`.
-3. Escrever critérios de aceite executáveis em `dado / quando / então`, com meio de verificação declarado.
-4. Priorizar contra rubrica explícita, registrando justificativa por posição.
-5. Declarar fora de escopo por story.
-6. Anexar as restrições transversais `R1`–`R4` aplicáveis a cada story.
-7. Registrar premissas quando o briefing for omisso, com nível de risco.
-8. Congelar a story ao movê-la para `READY`.
+1. Interpretar o briefing e separar requisitos declarados, suposições e adiamentos.
+2. Ancorar cada capacidade e restrição em um trecho identificável do briefing.
+3. Decompor o trabalho na menor sequência de stories verticais `como / quero / para`.
+4. Fazer a primeira story provar o laço ponta a ponta do produto.
+5. Escrever critérios de aceite binários e reproduzíveis em uma linha, com meio de verificação declarado.
+6. Priorizar por dependência, redução de risco e valor, registrando justificativa por posição.
+7. Declarar fora de escopo e cortes deliberados; corte silencioso é inválido.
+8. Anexar as restrições transversais `R1`–`R4` aplicáveis a cada story.
+9. Verificar que toda capacidade está coberta, adiada ou assumida exatamente uma vez.
+10. Congelar a story ao movê-la para `READY`.
 
 **Limites duros:**
 
@@ -204,34 +245,60 @@ Matriz do que cada agente pode ler. **Preencher em conjunto — é aqui que os p
 - ❌ Não aprova entrega — não existe transição de estado para `ACCEPTED` disponível a ele.
 - ❌ Não altera critério de story fora de `DRAFT`. Congelamento mecânico, não instrução de prompt.
 - ❌ Não cria requisito sem origem citável no briefing. Sem citação → vira premissa com flag.
+- ❌ Não duplica um resultado observável em duas stories; isso tornaria o veredito do QA ambíguo.
+- ❌ Não altera a redação canônica de um critério depois do congelamento. O QA deve reproduzi-la literalmente.
 
 **Rubrica de priorização:** `ABERTO` — dono `@quem`
 
-**Schema de saída:**
+**Envelope mínimo de saída:**
 
 ```json
 {
-  "id": "NC-003",
-  "titulo": "",
-  "narrativa": { "como": "", "quero": "", "para": "" },
-  "origem": ["trecho literal do briefing"],
-  "prioridade": 1,
-  "justificativa_prioridade": "",
-  "depende_de": [],
-  "restricoes_aplicaveis": ["R1", "R3"],
-  "criterios_aceite": [
+  "stories": [
     {
-      "id": "AC-1",
-      "dado": "",
-      "quando": "",
-      "entao": "",
-      "verificavel_por": "ui | dados | api"
+      "id": "NC-003",
+      "titulo": "",
+      "narrativa": { "como": "", "quero": "", "para": "" },
+      "origem": ["trecho literal ou paráfrase próxima do briefing"],
+      "prioridade": 1,
+      "justificativa_prioridade": "",
+      "depende_de": [],
+      "restricoes_aplicaveis": ["R1", "R3"],
+      "criterios_aceite": [
+        {
+          "id": "AC-1",
+          "texto": "Dado ..., quando ..., então ...",
+          "verificavel_por": "ui | dados | api"
+        }
+      ],
+      "fora_de_escopo": [],
+      "estado": "DRAFT | READY | FROZEN"
     }
   ],
-  "fora_de_escopo": [],
-  "estado": "DRAFT | READY | FROZEN"
+  "decisions": [
+    {
+      "titulo": "",
+      "tipo": "SUPOSICAO | ADIAMENTO | SKILL",
+      "justificativa": "",
+      "alternativa_descartada": ""
+    }
+  ],
+  "cobertura": [
+    {
+      "item": "capacidade, restrição ou suposição",
+      "origem": "trecho do briefing ou null",
+      "estado": "COBERTA | ADIADA | ASSUMIDA",
+      "story_id": "NC-003 ou null",
+      "criterio_id": "AC-1 ou null",
+      "decision_titulo": "título da decisão ou null"
+    }
+  ]
 }
 ```
+
+`criterios_aceite[].texto` é a representação canônica congelada. Pode usar
+`Dado / Quando / Então` ou afirmação direta, mas contém um único fato observável. O QA recebe e
+reporta essa string sem paráfrase, uma vez e na ordem declarada.
 
 **Limitações operacionais:**
 
@@ -330,6 +397,8 @@ Duas queries a especificar:
 ## 10. Perguntas em aberto
 
 Mover para a seção correspondente assim que resolvida. Não deixar apodrecer aqui.
+
+Q1–Q4 têm recomendação de partida (não decidida) em [ENTENDIMENTO.md](ENTENDIMENTO.md) §6.
 
 | # | Pergunta | Bloqueia | Dono | Prazo |
 |---|---|---|---|---|
