@@ -82,7 +82,11 @@ class CodexProvider(ModelProvider):
             ]
             if request.output_schema is not None:
                 schema_path.write_text(
-                    json.dumps(request.output_schema, ensure_ascii=False, indent=2),
+                    json.dumps(
+                        _codex_output_schema(request.output_schema),
+                        ensure_ascii=False,
+                        indent=2,
+                    ),
                     encoding="utf-8",
                 )
                 args += ["--output-schema", str(schema_path)]
@@ -168,3 +172,25 @@ def _maybe_json(text: str) -> dict | None:
     except (ValueError, TypeError):
         return None
     return parsed if isinstance(parsed, dict) else None
+
+
+def _codex_output_schema(schema: dict) -> dict:
+    """Remove keywords recusadas pelo structured output do Codex.
+
+    `uniqueItems` continua no schema canônico e é aplicado pelo PO após a
+    resposta. Aqui removemos somente a restrição que a Responses API não aceita
+    no `response_format`; não alteramos o contrato persistido nem seu validador.
+    """
+
+    def normalize(value):
+        if isinstance(value, dict):
+            return {
+                key: normalize(item)
+                for key, item in value.items()
+                if key != "uniqueItems"
+            }
+        if isinstance(value, list):
+            return [normalize(item) for item in value]
+        return value
+
+    return normalize(schema)
