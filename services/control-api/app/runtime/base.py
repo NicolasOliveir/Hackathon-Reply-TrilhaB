@@ -14,7 +14,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Protocol, runtime_checkable
+from pathlib import Path, PurePosixPath
+from typing import Literal, Protocol, runtime_checkable
 
 # Nomes que jamais podem chegar a um container de agente. A checagem é feita
 # na montagem do spec, e não por revisão de código.
@@ -33,11 +34,110 @@ class ForbiddenEnvironment(RuntimeError_):
     """Tentativa de passar credencial de plano de controle ao agente."""
 
 
+class InvalidMount(RuntimeError_):
+    """Mount inválido ou incompatível com o papel do worker."""
+
+
 @dataclass(frozen=True)
 class ResourceLimits:
     memory: str = "128m"
     cpus: float = 0.5
     pids: int = 64
+
+
+MOUNT_TARGETS = frozenset({"/workspace", "/tests"})
+
+
+@dataclass(frozen=True)
+class ContainerMount:
+    """Bind mount explícito entregue a um container efêmero.
+
+    O host path precisa ser absoluto e os destinos são intencionalmente
+    limitados às duas raízes públicas dos workers. Isso evita transformar o
+    runtime numa forma indireta de montar o repositório ou o socket Docker.
+    """
+
+    source: str | Path
+    target: str
+    read_only: bool
+
+    def __post_init__(self) -> None:
+        source = Path(self.source)
+        if not source.is_absolute():
+            raise InvalidMount(f"origem do mount precisa ser absoluta: {self.source!r}")
+        if source == Path(source.anchor):
+            raise InvalidMount("a raiz do host nunca pode ser montada no worker")
+        object.__setattr__(self, "source", str(source))
+        if self.target not in MOUNT_TARGETS:
+            allowed = ", ".join(sorted(MOUNT_TARGETS))
+            raise InvalidMount(
+                f"destino do mount precisa ser uma raiz permitida ({allowed}): "
+                f"{self.target!r}"
+            )
+        if source.name != self.target.removeprefix("/"):
+            raise InvalidMount(
+                f"origem de {self.target} precisa terminar em "
+                f"{self.target.removeprefix('/')!r}: {source}"
+            )
+
+
+def validate_worker_mounts(
+    role: Literal["dev", "qa"], mounts: tuple[ContainerMount, ...]
+) -> None:
+    """Valida a matriz mínima de acesso dos workers que alteram arquivos."""
+
+    by_target = {mount.target: mount for mount in mounts}
+    if len(by_target) != len(mounts):
+        raise InvalidMount("destinos de mounts precisam ser distintos")
+    if len({str(Path(mount.source).resolve()) for mount in mounts}) != len(mounts):
+        raise InvalidMount("origens de mounts precisam ser distintas")
+
+    if role == "dev":
+        expected = by_target.get("/workspace")
+        if len(mounts) != 1 or expected is None or expected.read_only:
+            raise InvalidMount("Dev requer somente /workspace com leitura e escrita")
+        return
+
+    workspace = by_target.get("/workspace")
+    tests = by_target.get("/tests")
+    if (
+        len(mounts) != 2
+        or workspace is None
+        or not workspace.read_only
+        or tests is None
+        or tests.read_only
+    ):
+        raise InvalidMount("QA requer /workspace somente leitura e /tests gravável")
+
+
+def worker_mounts(
+    role: Literal["dev", "qa"],
+    *,
+    workspace: str | Path,
+    tests: str | Path | None = None,
+) -> tuple[ContainerMount, ...]:
+    """Monta e valida os binds canônicos de Dev ou QA."""
+
+    if role == "dev":
+        if tests is not None:
+            raise InvalidMount("Dev não recebe um mount separado de testes")
+        mounts = (
+            ContainerMount(
+                source=str(workspace), target="/workspace", read_only=False
+            ),
+        )
+    elif role == "qa":
+        if tests is None:
+            raise InvalidMount("QA requer a origem do mount /tests")
+        mounts = (
+            ContainerMount(source=str(workspace), target="/workspace", read_only=True),
+            ContainerMount(source=str(tests), target="/tests", read_only=False),
+        )
+    else:  # pragma: no cover - protegido também pelo tipo em consumidores tipados
+        raise InvalidMount(f"papel sem política de mounts: {role!r}")
+
+    validate_worker_mounts(role, mounts)
+    return mounts
 
 
 @dataclass(frozen=True)
@@ -48,6 +148,9 @@ class ContainerSpec:
     labels: dict[str, str] = field(default_factory=dict)
     limits: ResourceLimits = field(default_factory=ResourceLimits)
     read_only: bool = True
+    mounts: tuple[ContainerMount, ...] = ()
+    user: str = "10001:10001"
+    working_dir: str | None = None
 
     def __post_init__(self) -> None:
         leaked = FORBIDDEN_ENV.intersection(self.environment)
@@ -56,6 +159,29 @@ class ContainerSpec:
                 "variáveis proibidas em container de agente: "
                 + ", ".join(sorted(leaked))
             )
+        targets = [mount.target for mount in self.mounts]
+        if len(set(targets)) != len(targets):
+            raise InvalidMount("destinos de mounts precisam ser distintos")
+        if len(
+            {str(Path(mount.source).resolve()) for mount in self.mounts}
+        ) != len(self.mounts):
+            raise InvalidMount("origens de mounts precisam ser distintas")
+
+        if not self.user.strip():
+            raise RuntimeError_("usuário do container não pode ser vazio")
+
+        if self.working_dir is not None:
+            workdir = PurePosixPath(self.working_dir)
+            if not workdir.is_absolute() or ".." in workdir.parts:
+                raise InvalidMount(
+                    f"working_dir precisa ser absoluto e confinado: {self.working_dir!r}"
+                )
+            if not any(
+                self.working_dir == target
+                or self.working_dir.startswith(f"{target}/")
+                for target in targets
+            ):
+                raise InvalidMount("working_dir precisa estar dentro de um mount declarado")
 
 
 @dataclass(frozen=True)

@@ -40,7 +40,11 @@ services:
     ports:
       - "${CONTROL_API_BIND_ADDRESS:-127.0.0.1}:${CONTROL_API_PORT:-8000}:8000"
     volumes:
-      - run_workspaces:/var/lib/rivexx/workspaces
+      # Precisa ser bind, não volume nomeado: o runtime monta subdiretórios
+      # deste mesmo source nos containers Dev/QA através do daemon do host.
+      - type: bind
+        source: "${WORKSPACE_HOST_ROOT:-../.rivexx-data/workspaces}"
+        target: /var/lib/rivexx/workspaces
       - run_artifacts:/var/lib/rivexx/artifacts
       # O socket pertence somente ao plano de controle. O worker dinâmico não
       # recebe este mount; `:ro` também impede alterações no inode do host.
@@ -145,5 +149,4 @@ networks:
 
 volumes:
   postgres_data:
-  run_workspaces:
   run_artifacts:

@@ -110,6 +110,111 @@ paths:
           description: Saída aceita para processamento.
         "409":
           description: Saída duplicada ou incompatível com o estado atual.
+  /internal/v1/tasks/{task_id}/heartbeat:
+    post:
+      operationId: heartbeatTask
+      summary: Renova a lease da tarefa autenticada.
+      security:
+        - TaskBearer: []
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "200":
+          description: Lease renovada.
+        "403":
+          description: Token inválido ou papel sem heartbeat.
+  /internal/v1/tasks/{task_id}/artifacts:
+    post:
+      operationId: uploadTaskArtifact
+      summary: Persiste um artefato e devolve uma referência com SHA-256.
+      security:
+        - TaskBearer: []
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [contract_version, path, kind, media_type, content_base64]
+              properties:
+                contract_version:
+                  type: string
+                  const: 1.0.0
+                path:
+                  type: string
+                kind:
+                  type: string
+                media_type:
+                  type: string
+                content_base64:
+                  type: string
+                  contentEncoding: base64
+                attributes:
+                  type: object
+      responses:
+        "201":
+          description: Artefato persistido de forma idempotente.
+          content:
+            application/json:
+              schema:
+                $ref: ../../schemas/v1/common.schema.json#/$defs/artifactRef
+        "409":
+          description: O path já foi registrado com outro conteúdo.
+  /internal/v1/tasks/{task_id}/artifacts/{artifact_id}:
+    get:
+      operationId: downloadTaskArtifact
+      summary: Lê um artefato pertencente ao mesmo run da tarefa.
+      security:
+        - TaskBearer: []
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+        - name: artifact_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Bytes originais do artefato.
+        "404":
+          description: Artefato inexistente ou de outro run.
+  /internal/v1/tasks/{task_id}/failure:
+    post:
+      operationId: reportTaskFailure
+      summary: Reporta uma falha para o plano de controle encerrar a tentativa.
+      security:
+        - TaskBearer: []
+      parameters:
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [category, message]
+              properties:
+                category:
+                  type: string
+                  minLength: 1
+                  maxLength: 80
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 4000
+                retryable:
+                  type: boolean
+                  default: false
+                details:
+                  type: object
+      responses:
+        "202":
+          description: Falha registrada no event log.
 components:
   parameters:
     RunId:

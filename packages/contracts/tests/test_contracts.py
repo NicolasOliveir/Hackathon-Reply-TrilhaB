@@ -102,6 +102,10 @@ class ContractTestCase(unittest.TestCase):
             "streamRunEvents",
             "getTaskContext",
             "submitFakeWorkerOutput",
+            "heartbeatTask",
+            "uploadTaskArtifact",
+            "downloadTaskArtifact",
+            "reportTaskFailure",
         }
         operation_ids = {
             operation["operationId"]

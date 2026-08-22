@@ -82,6 +82,11 @@ class Settings:
     worker_memory_limit: str
     worker_cpu_limit: float
     worker_pids_limit: int
+    # Fundação de artefatos/workspaces (I2-003). Os defaults correspondem aos
+    # volumes nomeados já montados pelo Compose no control-api.
+    artifact_root: Path
+    workspace_root: Path
+    artifact_max_bytes: int
     # Gateway de modelo (I1-008)
     model_provider: str
     model_providers: tuple[str, ...]
@@ -204,6 +209,13 @@ def get_settings() -> Settings:
         worker_memory_limit=os.getenv("WORKER_MEMORY_LIMIT", "128m"),
         worker_cpu_limit=float(os.getenv("WORKER_CPU_LIMIT", "0.5")),
         worker_pids_limit=int(os.getenv("WORKER_PIDS_LIMIT", "64")),
+        artifact_root=Path(
+            os.getenv("ARTIFACT_ROOT", "/var/lib/rivexx/artifacts")
+        ).resolve(),
+        workspace_root=Path(
+            os.getenv("WORKSPACE_ROOT", "/var/lib/rivexx/workspaces")
+        ).resolve(),
+        artifact_max_bytes=int(os.getenv("ARTIFACT_MAX_BYTES", str(10 * 1024 * 1024))),
         model_provider=model_provider,
         model_providers=_model_providers(),
         model_routes=_model_routes(),

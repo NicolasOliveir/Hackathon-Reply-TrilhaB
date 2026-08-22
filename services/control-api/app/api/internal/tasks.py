@@ -99,21 +99,44 @@ async def get_task_context(
         ).scalar_one()
         issued = utc_now()
         receives_briefing = task.role in {"llm", "po"}
-        context_manifest = (
-            [
+        context_manifest = []
+        if receives_briefing:
+            context_manifest.append(
                 {
                     "source_id": f"run:{run.run_id}:briefing",
                     "source_type": "briefing",
                     "hash": run.briefing_hash,
                 }
-            ]
-            if receives_briefing
-            else []
-        )
+            )
+        elif task.input_payload:
+            # Handoffs posteriores são entregues prontos pelo plano de
+            # controle. O Dev recebe a story congelada; QA recebe a entrega,
+            # jamais o briefing bruto. O manifesto torna os hashes visíveis
+            # sem criar uma segunda cópia do payload.
+            manifest_fields = (
+                ("story_hash", "story"),
+                ("manifest_hash", "delivery"),
+                ("delivery_manifest_hash", "delivery"),
+                ("finding_hash", "finding"),
+                ("po_instructions_hash", "contract"),
+                ("backlog_hash", "contract"),
+            )
+            for field, source_type in manifest_fields:
+                value = task.input_payload.get(field)
+                if isinstance(value, str) and value.startswith("sha256:"):
+                    context_manifest.append(
+                        {
+                            "source_id": f"task:{task.task_id}:{field}",
+                            "source_type": source_type,
+                            "hash": value,
+                        }
+                    )
         if task.role == "fake":
             task_input = {"echo": "first-distributed-slice"}
         elif receives_briefing:
             task_input = {"briefing": run.briefing}
+        elif task.input_payload:
+            task_input = task.input_payload
         else:
             task_input = {}
         return {

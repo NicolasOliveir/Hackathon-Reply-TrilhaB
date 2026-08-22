@@ -8,13 +8,16 @@ loop que serve a API e o callback do worker — que chega **durante** o `wait`.
 from __future__ import annotations
 
 import asyncio
+import os
 from datetime import datetime, timezone
+from pathlib import Path
 
 from .base import (
     ContainerHandle,
     ContainerResult,
     ContainerSpec,
     ImageNotAllowed,
+    InvalidMount,
     RuntimeError_,
 )
 
@@ -29,9 +32,26 @@ def _utc_now() -> datetime:
 
 
 class DockerContainerRuntime:
-    def __init__(self, client, allowed_images: frozenset[str]) -> None:
+    def __init__(
+        self,
+        client,
+        allowed_images: frozenset[str],
+        mount_translations: dict[str | Path, str | Path] | None = None,
+        require_translated_mounts: bool = False,
+    ) -> None:
         self._client = client
         self._allowed_images = allowed_images
+        self._mount_translations = tuple(
+            sorted(
+                (
+                    (Path(container_path), Path(daemon_path))
+                    for container_path, daemon_path in (mount_translations or {}).items()
+                ),
+                key=lambda item: len(item[0].parts),
+                reverse=True,
+            )
+        )
+        self._require_translated_mounts = require_translated_mounts
 
     @classmethod
     def from_environment(cls, allowed_images: frozenset[str]):
@@ -42,7 +62,54 @@ class DockerContainerRuntime:
                 "docker SDK não instalado; use o extra control-api ou selecione "
                 "o runtime fake."
             ) from exc
-        return cls(docker.from_env(), allowed_images)
+        client = docker.from_env()
+        translations = cls._discover_mount_translations(client)
+        return cls(
+            client,
+            allowed_images,
+            mount_translations=translations,
+            # Dentro do control-api, um path não traduzido pertence ao
+            # namespace do container e não é uma origem válida para o daemon.
+            require_translated_mounts=Path("/.dockerenv").exists(),
+        )
+
+    @staticmethod
+    def _discover_mount_translations(client) -> dict[Path, Path]:
+        """Mapeia paths do control-api para paths vistos pelo daemon.
+
+        O control-api escreve em ``/var/lib/rivexx/workspaces`` dentro de um
+        volume nomeado. Um bind criado pelo daemon, porém, precisa usar o
+        ``Source`` host desse volume. O container atual é identificado pelo
+        hostname e seus mounts fornecem exatamente essa tradução.
+        """
+        hostname = os.getenv("HOSTNAME", "").strip()
+        if not hostname:
+            return {}
+        try:
+            mounts = client.containers.get(hostname).attrs.get("Mounts", [])
+        except Exception:  # noqa: BLE001 - fora de container não há self para inspecionar
+            return {}
+        translations: dict[Path, Path] = {}
+        for mount in mounts:
+            destination = mount.get("Destination")
+            source = mount.get("Source")
+            if destination and source:
+                translations[Path(destination)] = Path(source)
+        return translations
+
+    def _daemon_mount_source(self, source: str | Path) -> str:
+        container_source = Path(source)
+        for container_root, daemon_root in self._mount_translations:
+            try:
+                relative = container_source.relative_to(container_root)
+            except ValueError:
+                continue
+            return str(daemon_root / relative)
+        if self._require_translated_mounts:
+            raise InvalidMount(
+                f"origem {container_source} não pertence a um volume do control-api"
+            )
+        return str(container_source)
 
     def _assert_allowed(self, image: str) -> None:
         if image not in self._allowed_images:
@@ -72,6 +139,15 @@ class DockerContainerRuntime:
                 nano_cpus=int(spec.limits.cpus * 1_000_000_000),
                 pids_limit=spec.limits.pids,
                 network_disabled=False,
+                volumes={
+                    self._daemon_mount_source(mount.source): {
+                        "bind": mount.target,
+                        "mode": "ro" if mount.read_only else "rw",
+                    }
+                    for mount in spec.mounts
+                },
+                user=spec.user,
+                working_dir=spec.working_dir,
             )
 
         container = await asyncio.to_thread(_create)

@@ -6,6 +6,7 @@ testes cobrem autenticação, ordem, duplicidade e o formato do contexto.
 
 from __future__ import annotations
 
+import base64
 import uuid
 
 import pytest
@@ -281,6 +282,100 @@ async def test_failed_output_fails_the_run(client):
     assert (await client.get(f"/api/v1/runs/{run['run_id']}")).json()[
         "state"
     ] == "FAILED"
+
+
+async def test_explicit_worker_failure_is_recorded_by_the_control_plane(client):
+    from app.db import get_session_factory
+    from app.persistence.models import AgentTask, Event
+
+    run, task_id, token = await _dispatch(client, "int-key-worker-failure")
+    response = await client.post(
+        f"/internal/v1/tasks/{task_id}/failure",
+        json={
+            "category": "tool_failed",
+            "message": "pytest terminou com código 2",
+            "retryable": False,
+            "details": {"exit_code": 2},
+        },
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 202, response.text
+    assert response.json() == {
+        "accepted": True,
+        "task_state": "FAILED",
+        "run_state": "FAILED",
+    }
+    async with get_session_factory()() as session:
+        task = await session.get(AgentTask, uuid.UUID(task_id))
+        event = (
+            await session.execute(
+                select(Event)
+                .where(Event.run_id == uuid.UUID(run["run_id"]))
+                .order_by(Event.sequence.desc())
+                .limit(1)
+            )
+        ).scalar_one()
+    assert task.state == "FAILED"
+    assert task.token_hash is None
+    assert event.type == "AGENT_FAILED"
+    assert event.payload["category"] == "tool_failed"
+
+
+async def test_dev_uploads_and_reads_an_idempotent_artifact(
+    client, monkeypatch, tmp_path
+):
+    from app.config import get_settings
+    from app.db import get_session_factory
+    from app.persistence.models import AgentTask
+
+    monkeypatch.setenv("ARTIFACT_ROOT", str(tmp_path / "artifacts"))
+    get_settings.cache_clear()
+    _, task_id, token = await _dispatch(client, "int-key-artifact")
+    async with get_session_factory()() as session:
+        async with session.begin():
+            task = await session.get(AgentTask, uuid.UUID(task_id))
+            task.role = "dev"
+
+    headers = {"Authorization": f"Bearer {token}"}
+    payload = {
+        "contract_version": "1.0.0",
+        "path": "evidence/pytest.txt",
+        "kind": "test-log",
+        "media_type": "text/plain",
+        "content_base64": base64.b64encode(b"1 passed\n").decode("ascii"),
+        "attributes": {"command": "pytest"},
+    }
+    first = await client.post(
+        f"/internal/v1/tasks/{task_id}/artifacts", json=payload, headers=headers
+    )
+    replay = await client.post(
+        f"/internal/v1/tasks/{task_id}/artifacts", json=payload, headers=headers
+    )
+
+    assert first.status_code == 201, first.text
+    assert replay.status_code == 201, replay.text
+    assert replay.json() == first.json()
+    artifact = first.json()
+    assert artifact["sha256"].startswith("sha256:")
+    downloaded = await client.get(
+        f"/internal/v1/tasks/{task_id}/artifacts/{artifact['artifact_id']}",
+        headers=headers,
+    )
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"1 passed\n"
+    assert downloaded.headers["content-type"].startswith("text/plain")
+
+    collision = dict(payload)
+    collision["content_base64"] = base64.b64encode(b"failed\n").decode("ascii")
+    assert (
+        await client.post(
+            f"/internal/v1/tasks/{task_id}/artifacts",
+            json=collision,
+            headers=headers,
+        )
+    ).status_code == 409
+    get_settings.cache_clear()
 
 
 async def test_token_is_revoked_after_the_callback(client):
