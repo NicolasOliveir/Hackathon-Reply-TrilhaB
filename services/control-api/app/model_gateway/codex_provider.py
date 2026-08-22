@@ -184,6 +184,11 @@ def _codex_output_schema(schema: dict) -> dict:
 
     def normalize(value):
         if isinstance(value, dict):
+            reference = value.get("$ref")
+            if isinstance(reference, str) and reference.startswith(("http://", "https://")):
+                # O CLI recusa referências remotas no response_format. A API
+                # ainda valida a resposta contra o schema canônico completo.
+                return {}
             return {
                 key: normalize(item)
                 for key, item in value.items()
