@@ -32,6 +32,7 @@ TOKEN = "test-task-token"
 class FakeCentralApiHandler(BaseHTTPRequestHandler):
     output: dict[str, Any] | None = None
     idempotency_key: str | None = None
+    role = "fake"
 
     def do_GET(self) -> None:  # noqa: N802
         if self.headers.get("Authorization") != f"Bearer {TOKEN}":
@@ -43,16 +44,34 @@ class FakeCentralApiHandler(BaseHTTPRequestHandler):
                 "contract_version": "1.0.0",
                 "task_id": TASK_ID,
                 "run_id": RUN_ID,
-                "role": "fake",
+                "role": type(self).role,
                 "issued_at": "2026-08-22T16:00:02Z",
                 "expires_at": "2026-08-22T16:05:02Z",
-                "scopes": ["context:read", "output:write"],
+                "scopes": ["context:read", "output:write"]
+                + (["model:invoke"] if type(self).role != "fake" else []),
                 "context_manifest": [],
-                "input": {"echo": "test"},
+                "input": (
+                    {"echo": "test"}
+                    if type(self).role == "fake"
+                    else {"briefing": "Criar uma aplicação de gestão genérica."}
+                ),
             },
         )
 
     def do_POST(self) -> None:  # noqa: N802
+        if self.path.endswith("/model-invocations"):
+            self._send_json(
+                HTTPStatus.OK,
+                {
+                    "contract_version": "1.0.0",
+                    "provider": "test-provider",
+                    "model": "test-model",
+                    "text": "Backlog inicial gerado pelo modelo real.",
+                    "parsed": None,
+                    "usage": {"input_tokens": 10, "output_tokens": 8},
+                },
+            )
+            return
         type(self).idempotency_key = self.headers.get("Idempotency-Key")
         content_length = int(self.headers["Content-Length"])
         type(self).output = json.loads(self.rfile.read(content_length))
@@ -74,6 +93,7 @@ class WorkerTestCase(unittest.TestCase):
     def setUp(self) -> None:
         FakeCentralApiHandler.output = None
         FakeCentralApiHandler.idempotency_key = None
+        FakeCentralApiHandler.role = "fake"
         self.server = ThreadingHTTPServer(("127.0.0.1", 0), FakeCentralApiHandler)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
@@ -136,6 +156,16 @@ class WorkerTestCase(unittest.TestCase):
                     worker.Settings.from_env(
                         {**base_environment, forbidden_name: "must-not-be-present"}
                     )
+
+    def test_llm_role_invokes_gateway_and_submits_model_response(self) -> None:
+        FakeCentralApiHandler.role = "po"
+
+        result = worker.execute(
+            self.settings, now=datetime(2026, 8, 22, 16, 0, 3, tzinfo=UTC)
+        )
+
+        self.assertEqual(result["message"], "Backlog inicial gerado pelo modelo real.")
+        self.assertEqual(FakeCentralApiHandler.output, result)
 
     def test_rejects_context_from_another_run(self) -> None:
         context = {

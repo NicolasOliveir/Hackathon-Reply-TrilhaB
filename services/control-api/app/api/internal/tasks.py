@@ -94,6 +94,9 @@ async def get_task_context(
 ) -> dict[str, Any]:
     async with transaction() as session:
         task = await _authenticate(session, task_id, authorization)
+        run = (
+            await session.execute(select(Run).where(Run.run_id == task.run_id))
+        ).scalar_one()
         issued = utc_now()
         return {
             "contract_version": CONTRACT_VERSION,
@@ -107,11 +110,18 @@ async def get_task_context(
             .isoformat()
             .replace("+00:00", "Z"),
             "scopes": tokens.scopes_for(task.role),
-            # Vazio nesta iteração: o fake worker não recebe briefing, story nem
-            # diff. Quando houver PO, Dev e QA, cada papel recebe aqui apenas as
-            # fontes que a matriz de isolamento autoriza, com hash.
-            "context_manifest": [],
-            "input": {"echo": "first-distributed-slice"},
+            "context_manifest": [
+                {
+                    "source_id": f"run:{run.run_id}:briefing",
+                    "source_type": "briefing",
+                    "hash": run.briefing_hash,
+                }
+            ] if task.role != "fake" else [],
+            "input": (
+                {"echo": "first-distributed-slice"}
+                if task.role == "fake"
+                else {"briefing": run.briefing}
+            ),
         }
 
 
@@ -197,7 +207,7 @@ async def submit_task_output(
         drafts = [
             EventDraft(
                 type=event_type,
-                actor="fake_worker",
+                actor="fake_worker" if task.role == "fake" else task.role,
                 meta=usage.as_event_meta(),
                 task_id=task.task_id,
                 payload={

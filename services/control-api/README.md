@@ -146,6 +146,7 @@ despacho inteiro sem daemon.
 | `INTERNAL_BASE_URL` | `http://control-api:8000` | URL que o worker recebe |
 | `SCHEDULER_ENABLED` | desligado | sobe o laço junto com a aplicação |
 | `WORKER_MEMORY_LIMIT` / `WORKER_CPU_LIMIT` / `WORKER_PIDS_LIMIT` | `128m` / `0.5` / `64` | limites do container |
+| `INITIAL_TASK_ROLE` | `fake` com `echo`; `po` com provedor real | primeiro worker do run |
 
 O laço fica **desligado por padrão**: um scheduler que sobe em cada worker do
 Uvicorn criaria vários consumidores competindo pela mesma fila.
@@ -172,6 +173,20 @@ LLM"*.
 
 Os três implementam a mesma porta (`app/model_gateway/base.py`). Trocar de
 provedor não muda o gateway, a auditoria nem o contrato do agente.
+
+Para executar o primeiro worker com Claude:
+
+```bash
+MODEL_PROVIDER=anthropic
+MODEL_PROVIDERS=anthropic
+INITIAL_TASK_ROLE=po
+ANTHROPIC_API_KEY=... # somente no ambiente do control-api; nunca no worker
+```
+
+Para usar a sessão local do Codex, selecione `MODEL_PROVIDER=codex` e deixe o
+perfil apontado por `CODEX_HOME` disponível para o `control-api`. Em ambos os
+casos o run nasce com papel `po`, recebe o briefing e percorre gateway, auditoria
+e callback; não é necessário alterar código para uma aplicação específica.
 
 O `echo` não é mock de conveniência: respeita o contrato inteiro, inclusive
 `output_schema` e contabilidade de uso. É o que roda em CI, que não pode depender

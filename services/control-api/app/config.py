@@ -66,6 +66,7 @@ class Settings:
     public_base_url: str
     task_timeout_seconds: int
     task_max_attempts: int
+    initial_task_role: str
     sql_echo: bool
     # Runtime e despacho (I1-005)
     runtime_backend: str
@@ -160,6 +161,16 @@ def get_settings() -> Settings:
     }
     allowed.add(fake_worker_image)
 
+    model_provider = os.getenv("MODEL_PROVIDER", "echo").lower()
+    initial_task_role = os.getenv(
+        "INITIAL_TASK_ROLE", "fake" if model_provider == "echo" else "po"
+    ).lower()
+    if initial_task_role not in ROLE_SCOPES:
+        raise ValueError(
+            f"INITIAL_TASK_ROLE desconhecido: {initial_task_role}; "
+            f"use um de {', '.join(sorted(ROLE_SCOPES))}"
+        )
+
     return Settings(
         database_url=_require_async_driver(database_url),
         contracts_dir=_find_contracts_dir(),
@@ -170,6 +181,7 @@ def get_settings() -> Settings:
         task_max_attempts=int(
             os.getenv("TASK_MAX_ATTEMPTS", DEFAULT_TASK_MAX_ATTEMPTS)
         ),
+        initial_task_role=initial_task_role,
         sql_echo=os.getenv("SQL_ECHO", "").lower() in {"1", "true", "yes"},
         runtime_backend=os.getenv("RUNTIME_BACKEND", "docker").lower(),
         fake_worker_image=fake_worker_image,
@@ -187,7 +199,7 @@ def get_settings() -> Settings:
         worker_memory_limit=os.getenv("WORKER_MEMORY_LIMIT", "128m"),
         worker_cpu_limit=float(os.getenv("WORKER_CPU_LIMIT", "0.5")),
         worker_pids_limit=int(os.getenv("WORKER_PIDS_LIMIT", "64")),
-        model_provider=os.getenv("MODEL_PROVIDER", "echo").lower(),
+        model_provider=model_provider,
         model_providers=_model_providers(),
         model_routes=_model_routes(),
         anthropic_default_model=os.getenv(
