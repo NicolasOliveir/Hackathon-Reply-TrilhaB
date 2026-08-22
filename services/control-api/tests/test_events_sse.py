@@ -167,6 +167,22 @@ async def test_negative_last_event_id_is_rejected_by_http_contract(client):
     assert response.status_code == 422
 
 
+async def test_mobile_panel_origin_can_preflight_run_creation(client):
+    response = await client.options(
+        "/api/v1/runs",
+        headers={
+            "Origin": "http://192.168.1.20:5173",
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type,idempotency-key",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "*"
+    assert "POST" in response.headers["access-control-allow-methods"]
+    assert "Idempotency-Key" in response.headers["access-control-allow-headers"]
+
+
 async def test_openapi_exposes_sse_resume_header():
     from app.main import create_app
 
