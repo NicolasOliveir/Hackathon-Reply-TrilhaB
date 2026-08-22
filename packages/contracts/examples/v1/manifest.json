@@ -1,0 +1,65 @@
+{
+  "contract_version": "1.0.0",
+  "cases": [
+    {
+      "name": "create run request",
+      "schema": "https://reply.local/contracts/v1/create-run-request.schema.json",
+      "document": "valid/create-run-request.json",
+      "valid": true
+    },
+    {
+      "name": "run response",
+      "schema": "https://reply.local/contracts/v1/run-response.schema.json",
+      "document": "valid/run-response.json",
+      "valid": true
+    },
+    {
+      "name": "event envelope",
+      "schema": "https://reply.local/contracts/v1/event-envelope.schema.json",
+      "document": "valid/event-envelope.json",
+      "valid": true
+    },
+    {
+      "name": "agent task context",
+      "schema": "https://reply.local/contracts/v1/agent-task-context.schema.json",
+      "document": "valid/agent-task-context.json",
+      "valid": true
+    },
+    {
+      "name": "fake worker output",
+      "schema": "https://reply.local/contracts/v1/fake-worker-output.schema.json",
+      "document": "valid/fake-worker-output.json",
+      "valid": true
+    },
+    {
+      "name": "create run rejects short briefing",
+      "schema": "https://reply.local/contracts/v1/create-run-request.schema.json",
+      "document": "invalid/create-run-request-short.json",
+      "valid": false
+    },
+    {
+      "name": "run response rejects unknown state",
+      "schema": "https://reply.local/contracts/v1/run-response.schema.json",
+      "document": "invalid/run-response-state.json",
+      "valid": false
+    },
+    {
+      "name": "event envelope rejects sequence zero",
+      "schema": "https://reply.local/contracts/v1/event-envelope.schema.json",
+      "document": "invalid/event-envelope-sequence.json",
+      "valid": false
+    },
+    {
+      "name": "task context rejects database scope",
+      "schema": "https://reply.local/contracts/v1/agent-task-context.schema.json",
+      "document": "invalid/agent-task-context-scope.json",
+      "valid": false
+    },
+    {
+      "name": "fake worker rejects invented pass status",
+      "schema": "https://reply.local/contracts/v1/fake-worker-output.schema.json",
+      "document": "invalid/fake-worker-output-status.json",
+      "valid": false
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "contract_version": "1.0.0",
+  "initial_state": "RECEIVED",
+  "terminal_states": ["COMPLETED", "FAILED", "CANCELED"],
+  "transitions": [
+    {"from": "RECEIVED", "event": "TASK_QUEUED", "to": "WORKER_QUEUED"},
+    {"from": "WORKER_QUEUED", "event": "AGENT_STARTED", "to": "WORKER_RUNNING"},
+    {"from": "WORKER_QUEUED", "event": "AGENT_FAILED", "to": "FAILED"},
+    {"from": "WORKER_RUNNING", "event": "FAKE_WORKER_COMPLETED", "to": "COMPLETED"},
+    {"from": "WORKER_RUNNING", "event": "AGENT_FAILED", "to": "FAILED"},
+    {"from": "RECEIVED", "event": "RUN_CANCELED", "to": "CANCELED"},
+    {"from": "WORKER_QUEUED", "event": "RUN_CANCELED", "to": "CANCELED"},
+    {"from": "WORKER_RUNNING", "event": "RUN_CANCELED", "to": "CANCELED"}
+  ]
+}

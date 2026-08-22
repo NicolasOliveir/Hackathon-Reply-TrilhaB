@@ -1,0 +1,12 @@
+{
+  "name": "rivexx-autonomous-squad",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "contracts:test": "python3 -m unittest discover -s packages/contracts/tests -p 'test_*.py' -v"
+  }
+}
