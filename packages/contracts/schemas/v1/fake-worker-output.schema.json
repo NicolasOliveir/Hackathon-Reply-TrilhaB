@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/fake-worker-output.schema.json",
+  "title": "FakeWorkerOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "task_id",
+    "run_id",
+    "status",
+    "message",
+    "received_context_hash",
+    "emitted_at"
+  ],
+  "properties": {
+    "contract_version": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"
+    },
+    "task_id": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"
+    },
+    "run_id": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["SUCCEEDED", "FAILED"]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000
+    },
+    "received_context_hash": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"
+    },
+    "emitted_at": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/timestamp"
+    }
+  }
+}

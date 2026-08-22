@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/run-response.schema.json",
+  "title": "RunResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "run_id",
+    "state",
+    "created_at",
+    "updated_at",
+    "current_task_id",
+    "links"
+  ],
+  "properties": {
+    "contract_version": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"
+    },
+    "run_id": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"
+    },
+    "state": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/runState"
+    },
+    "created_at": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/timestamp"
+    },
+    "updated_at": {
+      "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/timestamp"
+    },
+    "current_task_id": {
+      "oneOf": [
+        {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"},
+        {"type": "null"}
+      ]
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["self", "events"],
+      "properties": {
+        "self": {
+          "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uri"
+        },
+        "events": {
+          "$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uri"
+        }
+      }
+    }
+  }
+}
