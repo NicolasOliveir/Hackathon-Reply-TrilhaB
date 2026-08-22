@@ -155,6 +155,49 @@ class AgentTask(Base):
     )
 
 
+class AgentExecution(Base):
+    """Uma tentativa de execução em container.
+
+    A unique `(task_id, attempt)` é o que torna o despacho idempotente: um nó
+    do grafo pode ser retomado, e o get-or-create por essa chave impede que a
+    retomada suba um segundo container para a mesma tentativa.
+    """
+
+    __tablename__ = "agent_executions"
+
+    execution_id: Mapped[uuid.UUID] = _uuid_column(primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = _uuid_column(
+        ForeignKey(f"{CONTROL_SCHEMA}.agent_tasks.task_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    run_id: Mapped[uuid.UUID] = _uuid_column(
+        ForeignKey(f"{CONTROL_SCHEMA}.runs.run_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    attempt: Mapped[int] = mapped_column(SmallInteger, nullable=False)
+    image: Mapped[str] = mapped_column(String(255), nullable=False)
+    container_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    exit_code: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    logs_tail: Mapped[str | None] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("task_id", "attempt", name="uq_agent_executions_task_attempt"),
+        CheckConstraint("attempt >= 1", name="attempt_starts_at_one"),
+        Index("ix_agent_executions_run_id", "run_id"),
+    )
+
+
 class IdempotencyKey(Base):
     """Deduplicação de comandos.
 

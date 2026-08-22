@@ -1,8 +1,8 @@
 """Aplicação FastAPI do control-api.
 
-Esqueleto mínimo da iteração 1: expõe apenas os endpoints de run entregues por
-`I1-004`. O runtime de containers (`I1-005`) e o SSE (`I1-006`) registram seus
-próprios routers aqui sem alterar este arquivo além da linha de inclusão.
+Iteração 1: endpoints de run (`I1-004`), endpoints internos de tarefa e laço do
+scheduler (`I1-005`). O SSE (`I1-006`) registra seu router aqui sem alterar
+mais nada.
 """
 
 from __future__ import annotations
@@ -12,11 +12,13 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from .api.internal.tasks import router as internal_tasks_router
 from .api.events.router import router as events_router
 from .api.runs.router import router as runs_router
 from .config import CONTRACT_VERSION, get_settings
 from .cors import install_panel_cors
 from .db import dispose_engine, init_engine
+from .orchestration.loop import scheduler_task
 
 
 @asynccontextmanager
@@ -24,7 +26,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     init_engine(settings)
     try:
-        yield
+        async with scheduler_task(settings):
+            yield
     finally:
         await dispose_engine()
 
@@ -37,6 +40,7 @@ def create_app() -> FastAPI:
     )
     install_panel_cors(app)
     app.include_router(runs_router)
+    app.include_router(internal_tasks_router)
     app.include_router(events_router)
 
     @app.get("/health", tags=["ops"])

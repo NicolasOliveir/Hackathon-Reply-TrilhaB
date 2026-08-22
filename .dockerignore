@@ -1,0 +1,12 @@
+.git
+.gitignore
+.pytest_cache
+**/__pycache__
+**/*.pyc
+**/*.egg-info
+**/node_modules
+**/dist
+build
+.artifacts
+.workspaces
+postgres_data
