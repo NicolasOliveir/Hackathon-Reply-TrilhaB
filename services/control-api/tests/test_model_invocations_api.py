@@ -10,7 +10,7 @@ from __future__ import annotations
 import uuid
 
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import select
 
 pytestmark = pytest.mark.asyncio
 
@@ -198,23 +198,63 @@ async def test_usage_reaches_the_completion_event_meta(client):
     assert completed.meta["latency_ms"] >= 0
 
 
-async def test_failed_invocation_is_still_audited(client):
+async def test_failed_invocation_is_still_audited(client, monkeypatch):
     """Invocação sem linha na auditoria seria um gasto invisível."""
+    from app.api.internal import model_invocations as endpoint
     from app.db import get_session_factory
+    from app.model_gateway.base import ModelGatewayError
+    from app.model_gateway.gateway import ModelGateway
+    from app.model_gateway.routing import ModelRouter
     from app.persistence.models import ModelInvocation
+
+    class FailingProvider:
+        name = "failing"
+
+        async def invoke(self, request):
+            raise ModelGatewayError("falha induzida do provedor")
+
+    gateway = ModelGateway(
+        providers={"failing": FailingProvider()},
+        router=ModelRouter(default_provider="failing"),
+    )
+    monkeypatch.setattr(endpoint, "_gateway", lambda settings: gateway)
 
     _, task_id, token = await _dispatch(client, "llm-key-0006")
 
-    response = await client.post(
-        f"/internal/v1/tasks/{task_id}/model-invocations",
-        json=_payload(model="modelo-inexistente"),
-        headers={"Authorization": f"Bearer {token}"},
-    )
-    assert response.status_code == 200  # echo aceita qualquer modelo
+    response = await _invoke(client, task_id, token)
+    assert response.status_code == 502
 
     async with get_session_factory()() as session:
-        count = await session.scalar(select(func.count()).select_from(ModelInvocation))
-    assert count == 1
+        invocation = (await session.execute(select(ModelInvocation))).scalar_one()
+
+    assert invocation.state == "FAILED"
+    assert invocation.provider == "failing"
+    assert invocation.error == "falha induzida do provedor"
+
+
+async def test_unconfigured_provider_is_still_audited(client, monkeypatch):
+    from app.api.internal import model_invocations as endpoint
+    from app.db import get_session_factory
+    from app.model_gateway.gateway import ModelGateway
+    from app.model_gateway.routing import ModelRouter
+    from app.persistence.models import ModelInvocation
+
+    gateway = ModelGateway(providers={}, router=ModelRouter(default_provider="missing"))
+    monkeypatch.setattr(endpoint, "_gateway", lambda settings: gateway)
+
+    _, task_id, token = await _dispatch(client, "llm-key-0006b")
+    response = await _invoke(client, task_id, token)
+
+    assert response.status_code == 502
+    assert response.json()["detail"]["error"] == "provider_not_configured"
+    async with get_session_factory()() as session:
+        invocation = (await session.execute(select(ModelInvocation))).scalar_one()
+
+    assert invocation.state == "FAILED"
+    assert invocation.provider == "missing"
+    assert (
+        "não configurado" in invocation.error or "nao configurado" in invocation.error
+    )
 
 
 # ------------------------------------------------------------------- travas
@@ -293,3 +333,35 @@ async def test_context_scopes_follow_the_task_role(client):
     ).json()
 
     assert "model:invoke" in body["scopes"]
+
+
+@pytest.mark.parametrize("role", ["dev", "qa"])
+async def test_only_po_receives_the_raw_briefing(client, role):
+    _, task_id, token = await _dispatch(
+        client, f"context-no-briefing-{role}", role=role
+    )
+
+    response = await client.get(
+        f"/internal/v1/tasks/{task_id}/context",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["input"] == {}
+    assert body["context_manifest"] == []
+    assert BRIEFING not in response.text
+
+
+async def test_po_receives_the_raw_briefing(client):
+    _, task_id, token = await _dispatch(client, "context-po-briefing", role="po")
+
+    body = (
+        await client.get(
+            f"/internal/v1/tasks/{task_id}/context",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+    ).json()
+
+    assert body["input"] == {"briefing": BRIEFING}
+    assert body["context_manifest"][0]["source_type"] == "briefing"

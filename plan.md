@@ -249,4 +249,3 @@ Esses subagentes concluíram somente o desenho. Os subagentes de implementação
 - painel em 320 px mostra backlog, decisões, QA e timeline auditável;
 - a aplicação gerada roda localmente e cobre os três cenários da Trilha B;
 - uma auditoria independente confirma cada requisito com evento, teste e evidence_ref.
-
