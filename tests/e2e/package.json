@@ -1,0 +1,9 @@
+{
+  "name": "@rivexx/e2e-distributed-slice",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.62.0"
+  }
+}

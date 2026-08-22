@@ -82,8 +82,17 @@ class EventStore:
         concorrentes alocam o mesmo `sequence` e colidem na unique constraint.
         """
         appended: list[Event] = []
-        previous_id = causation_id
         sequence = run.last_sequence
+        previous_id = causation_id
+        if previous_id is None and sequence > 0:
+            # Uma chamada posterior continua a cadeia do run em vez de criar
+            # uma nova raiz visual para cada transação (scheduler/callback).
+            previous_id = await self._session.scalar(
+                select(Event.event_id).where(
+                    Event.run_id == run.run_id,
+                    Event.sequence == sequence,
+                )
+            )
 
         for draft in drafts:
             if draft.drives_transition:
