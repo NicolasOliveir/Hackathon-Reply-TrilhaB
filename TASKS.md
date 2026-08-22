@@ -33,9 +33,15 @@ do desenvolvedor; `Branch` deve existir no remoto enquanto a tarefa estiver ativ
 | `I1-006` | SSE e integração da timeline | `CONCLUIDA` | MatheusSchimieguelSilva | `task/I1-006-sse-timeline` | 2026-08-22 15:26 -03:00 | `I1-003`, `I1-004` | endpoint SSE e integração de eventos no painel | Integrada na `main` em `d0b355d` após revisão independente; 39 testes API/PostgreSQL, 18 do painel, typecheck, build, 4 contratos e 9 worker/infra aprovados em 2026-08-22 16:07 -03:00. |
 | `I1-007` | E2E da fatia distribuída e isolamento | `CONCLUIDA` | MatheusSchimieguelSilva | `task/I1-007-e2e-distributed-slice` | 2026-08-22 16:20 -03:00 | `I1-002`, `I1-005`, `I1-006` | `tests/e2e/**`, roteiro e wiring final em `infra/**`/container do painel | Integrada na `main` em `051661a` após aprovação; `./tests/e2e/run.sh` aprovado 2x em instalação isolada, com Chromium 390x844, seis eventos causais, retry sem duplicação, retomada SSE 4/5/6 e probe sem PostgreSQL/socket. Regressão: 82 API, 18 painel, typecheck/build e 17 contratos/infra/worker com 21 subtestes. |
 | `I1-008` | Gateway real Claude/Codex e primeiro worker LLM | `CONCLUIDA` | Nicolau Codex | `task/I1-008-model-gateway` | 2026-08-22 16:21 -03:00 | `I1-005` | `services/control-api/app/model_gateway/**`, `api/internal/model-invocations`, worker LLM | Integrada na `main` em `663cfc5` após revisão e correção; 128 testes API/PostgreSQL e 4 testes do worker aprovados. Falhas do provedor permanecem auditadas e somente PO recebe o briefing bruto; endurecimento do subprocesso Codex fica como dívida pós-MVP. |
-| `I2-001` | Plano dos workers PO, Dev e QA | `EM_REVISAO` | Nicolau Codex | `task/I2-001-workers-plan` | 2026-08-22 16:34 -03:00 | `I1-008` | `plan.md` e detalhamento das tarefas I2 no quadro | Commit `2407789`; PO, Dev, QA, runner, toolchains, isolamento, gates e validação Trilha B especificados por subagentes. |
+| `I2-001` | Plano dos workers PO, Dev e QA | `CONCLUIDA` | Nicolau Codex | `task/I2-001-workers-plan` | 2026-08-22 16:34 -03:00 | `I1-008` | `plan.md` e detalhamento das tarefas I2 no quadro | Integrada na `main` em `f16fb8e`; tarefas `I2-002` a `I2-009` publicadas com dependências, áreas exclusivas e critérios verificáveis para PO, Dev, QA, runner e integração. |
 | `I2-002` | Contratos, projeções e grafo dos workers | `EM_REVISAO` | Worker Contracts Codex | `task/I2-002-worker-contracts` | 2026-08-22 16:44 -03:00 | `I1-008`, `I2-001` | `packages/contracts/**`, contratos/projeções dos workers e state machine | Commit `33058e5`; 7 testes aprovados; schemas, invariantes, hashes e fluxo de rejeição/reentrega congelados. |
+| `I2-003` | ArtifactStore, WorkspaceManager e runtime de ferramentas | `LIVRE` | — | — | — | `I2-002` | `services/control-api/app/artifacts/**`, `workspace/**`, `runtime/tools/**` e APIs internas correspondentes | Fundação compartilhada de artefatos, workspaces, mounts e execução confinada exigida antes dos workers Dev e QA. |
 | `I2-004` | PO Worker real e backlog persistido | `EM_ANDAMENTO` | PO Worker Codex | `task/I2-004-po-worker` | 2026-08-22 16:51 -03:00 | `I2-002` | `services/po-worker/**`, persistência/API de backlog e handoff PO -> Dev | Implementar worker Docker genérico com structured output, invariantes, reparo, auditoria e projeções atômicas. |
+| `I2-005` | Dev Worker real | `LIVRE` | — | — | — | `I2-002`, `I2-003` | `services/dev-worker/**` | Consumir story congelada e produzir plano, ADRs, commit, verificações e entrega reproduzível sem receber briefing. |
+| `I2-006` | QA Worker e adapters | `LIVRE` | — | — | — | `I2-002`, `I2-003` | `services/qa-worker/**` | Produzir plano e testes materializados por critério; não executar comandos nem declarar aceite. |
+| `I2-007` | Test runner e motor de veredito | `LIVRE` | — | — | — | `I2-002`, `I2-003`, `I2-006` | `services/test-runner/**` e motor de veredito da API | Executar plano sem LLM e derivar aceite, reprovação ou necessidade de intervenção. |
+| `I2-008` | Orquestração, painel e ciclo de correção | `LIVRE` | — | — | — | `I2-004`, `I2-005`, `I2-006`, `I2-007` | grafo final, projeções e telas de backlog/ADR/QA | Integrar uma story, reprovação real, correção, retomada e observabilidade mobile. |
+| `I2-009` | Validação Trilha B e auditoria independente | `LIVRE` | — | — | — | `I2-008` | `tests/e2e/**`, seeds, roteiro e evidências da demo | Provar os três cenários Rivexx e a generalidade do squad com evidências reproduzíveis. |
 
 ## Detalhamento e critérios de conclusão
 
@@ -175,3 +181,67 @@ Entrega:
 
 Concluida quando um agente obtem resposta real do provedor sem que a credencial saia do
 `control-api`, o uso aparece no evento e o papel sem escopo recebe 403.
+
+### I2-001 — Plano dos workers PO, Dev e QA
+
+Entrega e ordem de execução estão definidas em [plan.md](plan.md). Concluída quando todas as
+tarefas `I2-002` a `I2-009` possuem dependências, área exclusiva e resultado verificável no
+quadro, permitindo reserva sem sobreposição entre PO, Dev, QA e runner.
+
+### I2-002 — Contratos, projeções e grafo dos workers
+
+Entrega:
+
+- schemas e exemplos válidos/inválidos dos handoffs PO → Dev → QA → runner;
+- eventos, estados, transições, hashes, revisões e idempotência;
+- projeções necessárias para backlog, ADRs, entrega Dev e relatório QA;
+- tipos Python/TypeScript gerados a partir da fonte versionada.
+
+Concluída quando o Gate A congela os handoffs, transições inválidas são recusadas e os testes de
+contrato provam aceite, reprovação e reentrega sem duplicação.
+
+### I2-003 — ArtifactStore, WorkspaceManager e runtime de ferramentas
+
+Entrega:
+
+- armazenamento local de artefatos com metadados, SHA-256 e paths confinados;
+- workspace por execução/revisão criado de snapshot imutável;
+- executor por `argv`, cwd permitido, timeout e limite de saída;
+- mounts distintos: Dev em `/workspace` RW, QA com código RO e `/tests` RW;
+- APIs internas de heartbeat, artifact e failure consumidas pelos workers.
+
+Concluída quando testes negativos bloqueiam traversal/symlink, acesso fora do workspace e mounts
+indevidos, e Dev/QA conseguem consumir a fundação por interfaces estáveis.
+
+### I2-004 — PO Worker real
+
+Concluída quando o briefing produz backlog genérico, validado, priorizado e congelado; somente o
+PO recebe o briefing bruto e uma story pronta gera o handoff Dev idempotente.
+
+### I2-005 — Dev Worker real
+
+Concluída quando uma story congelada altera um scaffold em workspace isolado, gera plano, ADRs,
+commit, diff e evidências, executa build/test e entrega exatamente esse snapshot ao QA sem receber
+o briefing.
+
+### I2-006 — QA Worker e adapters
+
+Concluída quando cada critério literal gera casos e arquivos de teste rastreáveis, confinados ao
+volume de testes, e o QA publica somente um plano declarativo para o runner, sem executar comandos
+ou declarar PASS/FAIL.
+
+### I2-007 — Test runner e motor de veredito
+
+Concluída quando o runner executa comandos allowlisted sem LLM, registra exit codes e evidências e
+a API deriva `STORY_ACCEPTED`, `STORY_REJECTED` ou `NEEDS_HUMAN` de forma determinística.
+
+### I2-008 — Orquestração, painel e ciclo de correção
+
+Concluída quando uma story percorre PO → Dev → QA → runner, uma falha real retorna ao Dev, a nova
+revisão pode ser aceita, o processo retoma após reinício e o painel expõe backlog, ADRs e QA em
+viewport de 320 px.
+
+### I2-009 — Validação Trilha B e auditoria independente
+
+Concluída quando um comando reproduz os três cenários Rivexx, incluindo uma reprovação real, e um
+relatório independente liga cada requisito a eventos, artefatos e evidências verificáveis.
