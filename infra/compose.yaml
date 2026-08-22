@@ -32,7 +32,7 @@ services:
       SCHEDULER_ENABLED: "true"
       SCHEDULER_IDLE_SECONDS: "${SCHEDULER_IDLE_SECONDS:-0.5}"
       FAKE_WORKER_IMAGE: "${FAKE_WORKER_IMAGE:-rivexx/fake-worker:local}"
-      AGENT_NETWORK: "rivexx-squad_agent_net"
+      AGENT_NETWORK: "${AGENT_NETWORK:-rivexx-squad_agent_net}"
       INTERNAL_BASE_URL: "http://control-api:8000"
     depends_on:
       postgres:
@@ -66,15 +66,18 @@ services:
       start_period: 3s
 
   control-panel:
-    image: nginx:1.27-alpine
+    image: "${CONTROL_PANEL_IMAGE:-rivexx/control-panel:local}"
+    build:
+      context: ..
+      dockerfile: apps/control-panel/Dockerfile
+      args:
+        VITE_CONTROL_API_URL: "${VITE_CONTROL_API_URL:-}"
     restart: unless-stopped
     depends_on:
       control-api:
         condition: service_healthy
     ports:
       - "${CONTROL_PANEL_BIND_ADDRESS:-127.0.0.1}:${CONTROL_PANEL_PORT:-4173}:80"
-    volumes:
-      - ./stubs/control-panel/index.html:/usr/share/nginx/html/index.html:ro
     networks:
       - public_net
     security_opt:
@@ -111,6 +114,26 @@ services:
     pids_limit: 64
     mem_limit: 128m
     cpus: 0.50
+    restart: "no"
+
+  e2e:
+    profiles: ["e2e"]
+    image: "${E2E_IMAGE:-rivexx/e2e:local}"
+    build:
+      context: ..
+      dockerfile: tests/e2e/Dockerfile
+    init: true
+    ipc: host
+    depends_on:
+      control-api:
+        condition: service_healthy
+      control-panel:
+        condition: service_healthy
+    environment:
+      E2E_PANEL_URL: "http://control-panel"
+      E2E_API_URL: "http://control-api:8000"
+    networks:
+      - public_net
     restart: "no"
 
 networks:

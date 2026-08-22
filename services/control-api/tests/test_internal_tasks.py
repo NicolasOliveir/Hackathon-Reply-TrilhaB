@@ -192,6 +192,9 @@ async def test_successful_output_emits_the_completion_events(client):
 
     types = [event.type for event in events]
     assert types[-2:] == ["FAKE_WORKER_COMPLETED", "RUN_COMPLETED"]
+    assert events[0].causation_id is None
+    for previous, current in zip(events, events[1:]):
+        assert current.causation_id == previous.event_id
 
     completed = events[-2]
     assert completed.actor == "fake_worker"
