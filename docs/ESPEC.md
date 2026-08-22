@@ -180,8 +180,9 @@ não participa do MVP.
 ### 5.1 Topologia
 
 `DECIDIDO` — `control-api` é API, scheduler e grafo no MVP. Ele lança `po-worker`, `dev-worker`,
-`qa-worker` e `test-runner` efêmeros pelo Docker Engine. Workers não acessam banco, Docker socket
-ou outros workers. Ver [topologia completa](ORQUESTRADOR.md#4-topologia) e
+`qa-worker`, `test-runner` e o ambiente efêmero da aplicação sob teste pelo Docker Engine. Esse
+ambiente contém o frontend e backend da revisão do Dev e só é liberado ao runner após healthchecks.
+Workers não acessam banco, Docker socket ou outros workers. Ver [topologia completa](ORQUESTRADOR.md#4-topologia) e
 [fluxo em texto](FLOWCHART.txt).
 
 ### 5.2 Event log
@@ -234,6 +235,7 @@ Envelope mínimo:
 | `CODE_DELIVERED` | dev | revisão, alterações, evidências e limitações |
 | `CODE_REDELIVERED` | dev | revisão anterior, nova revisão e remediações |
 | `TEST_PLAN_CREATED` | qa | story, casos e critérios cobertos |
+| `APP_ENVIRONMENT_READY` | system | revisão, containers, endpoints internos e healthchecks |
 | `TEST_EXECUTED` | runner | comando, exit code, resultados e evidências |
 | `STORY_REJECTED` | system | story, revisão e findings derivados do runner |
 | `STORY_ACCEPTED` | system | story, revisão e test execution id |

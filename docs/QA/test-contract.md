@@ -15,7 +15,8 @@ Dev -> API: CODE_DELIVERED | CODE_REDELIVERED
 API -> QA: contexto filtrado (story + entrega + manifestos autorizados)
 QA -> API: configuração JSON + TEST_PLAN_CREATED + findings, se houver
 API -> ArtifactStore / banco: arquivo, hash, metadados e evento
-API -> runner: plano e testes materializados, somente leitura
+API / ContainerRuntime -> ambiente isolado: rivexx-api + rivexx-web + healthchecks
+API -> runner: endpoints internos, plano e testes materializados, somente leitura
 Runner -> API: TEST_EXECUTED
 API -> sistema: STORY_ACCEPTED | STORY_REJECTED
 ```
@@ -118,8 +119,10 @@ O QA submete `TEST_PLAN_CREATED` e, se houver falha de comportamento observada,
 findings técnicos vinculados ao critério. Ele não submete `TEST_EXECUTED`,
 `STORY_ACCEPTED` nem `STORY_REJECTED`.
 
-O runner recebe o arquivo JSON e os testes materializados como mounts somente
-leitura. Ele submete `TEST_EXECUTED` com `story_id`, `version`, `frozen_hash`,
-`implementation_revision`, `test_plan_id`, `test_plan_hash`, exit code,
-resultado por caso e referências de evidência. A API deriva o aceite ou a
-reprovação a partir dessa saída estruturada.
+Após persistir o plano, a API manda o `ContainerRuntime` subir o frontend e
+backend da revisão e aguardar seus healthchecks. O runner recebe os endpoints
+internos desse ambiente, o arquivo JSON e os testes materializados como mounts
+somente leitura. Ele submete `TEST_EXECUTED` com `story_id`, `version`,
+`frozen_hash`, `implementation_revision`, `test_plan_id`, `test_plan_hash`, exit
+code, resultado por caso e referências de evidência. A API deriva o aceite ou a
+reprovação a partir dessa saída estruturada e encerra o ambiente efêmero.

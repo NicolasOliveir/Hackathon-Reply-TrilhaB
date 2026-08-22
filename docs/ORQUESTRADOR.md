@@ -121,6 +121,27 @@ demonstrável — que o Dev e o QA não conseguem recuperar o briefing pelo file
 Dependências necessárias à demo ficam travadas no scaffold ou nas imagens. O gateway de modelo
 é a única saída dos agentes para um serviço externo e permanece dentro do `control-api`.
 
+### 4.4 Ambiente da aplicação sob teste
+
+O `control-api`, por meio do `ContainerRuntime`, é o único responsável por subir e encerrar a
+aplicação Rivexx de uma revisão do Dev. O `docker compose` inicial sobe apenas os serviços fixos
+da plataforma: `control-api`, `control-panel` e `postgres`.
+
+Depois que o QA submete um plano JSON válido, o `ContainerRuntime` cria o ambiente efêmero da
+story com imagens e comandos permitidos pelo scaffold:
+
+- `rivexx-api`: backend da revisão entregue pelo Dev;
+- `rivexx-web`: frontend da mesma revisão;
+- uma rede privada por execução, acessível ao `test-runner` e não publicada no host;
+- mounts do workspace em leitura, `/tmp` limitado e diretório de evidências gravável apenas onde
+  necessário.
+
+O runtime aguarda os healthchecks declarados pelo scaffold para backend e frontend antes de
+liberar o runner. A API entrega ao runner somente os endpoints internos e os hashes da revisão;
+QA e runner não recebem Docker socket nem sobem containers. Ao término, o `control-api` preserva
+logs e evidências como artefatos e remove os containers da aplicação, inclusive em falha ou
+timeout.
+
 ## 5. Responsabilidades do `control-api`
 
 O container central possui módulos lógicos separados, mesmo permanecendo um único deploy no MVP:
@@ -157,11 +178,15 @@ Kubernetes Jobs sem alterar o grafo, os agentes ou o protocolo HTTP.
 5. A API valida o schema, persiste backlog/decisões/eventos e congela as stories.
 6. Para cada story, de forma sequencial no MVP, o grafo agenda o Dev.
 7. O Dev altera o workspace, registra tasks/ADRs/evidências e entrega uma revisão.
-8. O QA recebe story congelada e entrega do Dev, cria o plano e materializa os testes.
-9. O runner executa os testes. A API deriva o veredito dos resultados e do exit code.
-10. Em caso de falha, a API envia findings estruturados ao Dev e incrementa a revisão.
-11. Em caso de sucesso, a story é aceita e o grafo avança para a próxima.
-12. Ao final, a API marca a execução como concluída; todas as views continuam disponíveis.
+8. O QA recebe story congelada e entrega do Dev, cria o plano JSON e materializa os testes.
+9. A API valida e persiste o plano. O `control-api` usa o `ContainerRuntime` para subir o
+   frontend e backend da revisão em uma rede privada e aguarda seus healthchecks.
+10. A API entrega os endpoints internos, plano e testes ao runner. O runner executa a suíte.
+11. A API deriva o veredito dos resultados e do exit code, preserva artefatos e encerra o ambiente
+   efêmero da aplicação.
+12. Em caso de falha, a API envia findings estruturados ao Dev e incrementa a revisão.
+13. Em caso de sucesso, a story é aceita e o grafo avança para a próxima.
+14. Ao final, a API marca a execução como concluída; todas as views continuam disponíveis.
 
 O container pode terminar a qualquer momento. Seu resultado só existe oficialmente depois de
 validado e persistido pela API.
@@ -173,6 +198,7 @@ RECEIVED
   -> PO_QUEUED -> PO_RUNNING -> BACKLOG_FROZEN
   -> DEV_QUEUED -> DEV_RUNNING -> DELIVERY_READY
   -> QA_QUEUED -> QA_RUNNING -> TESTS_READY
+  -> APP_ENV_QUEUED -> APP_ENV_RUNNING -> APP_ENV_READY
   -> RUNNER_QUEUED -> RUNNER_RUNNING
        -> STORY_ACCEPTED -> próxima story ou COMPLETED
        -> STORY_REJECTED -> DEV_QUEUED
