@@ -1,10 +1,11 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { App } from './App';
-const label='O que você quer construir?';
-function submit(){fireEvent.change(screen.getByLabelText(label),{target:{value:'Criar um painel de execução observável'}});fireEvent.click(screen.getByRole('button',{name:/iniciar/i}))}
+const label='Descreva sua necessidade';
+function submit(){fireEvent.change(screen.getByLabelText(label),{target:{value:'Criar um painel de execução observável'}});fireEvent.click(screen.getByRole('button',{name:/enviar e acompanhar/i}))}
 describe('painel responsivo e auditoria',()=>{
- it('valida e preserva briefing curto',()=>{render(<App/>);const field=screen.getByLabelText(label);fireEvent.change(field,{target:{value:'curto'}});fireEvent.click(screen.getByRole('button',{name:/iniciar/i}));expect(screen.getByRole('alert')).toHaveTextContent('20 caracteres');expect(field).toHaveValue('curto')});
+ it('valida, preserva e foca um briefing curto',()=>{render(<App/>);const field=screen.getByLabelText(label);fireEvent.change(field,{target:{value:'curto'}});fireEvent.click(screen.getByRole('button',{name:/enviar e acompanhar/i}));expect(screen.getByRole('alert')).toHaveTextContent('Conte um pouco mais');expect(field).toHaveValue('curto');expect(field).toHaveFocus()});
+ it('orienta uma pessoa não técnica e oferece exemplo preenchível',()=>{render(<App/>);expect(screen.getByRole('heading',{name:/precisa melhorar no trabalho/i})).toBeInTheDocument();expect(screen.getByText(/não precisa usar termos técnicos/i)).toBeInTheDocument();fireEvent.click(screen.getByRole('button',{name:/usar um exemplo/i}));expect((screen.getByLabelText(label) as HTMLTextAreaElement).value).toContain('não conformidades')});
  it('carrega eventos tipados e impede fluxo sem briefing',async()=>{render(<App/>);submit();expect(screen.getByRole('status')).toHaveTextContent('carregando');await waitFor(()=>expect(screen.getByText('Briefing recebido')).toBeInTheDocument())});
  it('expõe sequência, causalidade, IDs e detalhes progressivos',async()=>{render(<App/>);submit();await waitFor(()=>expect(screen.getByText('Briefing recebido')).toBeInTheDocument());expect(screen.getByText('Etapa 2')).toBeInTheDocument();fireEvent.click(screen.getAllByText(/Detalhes t/)[0]);expect(screen.getAllByText(/Correlation ID/).length).toBeGreaterThan(0)});
  it('filtra e limpa auditoria',async()=>{render(<App/>);submit();await waitFor(()=>expect(screen.getByText('Briefing recebido')).toBeInTheDocument());fireEvent.click(screen.getByRole('button',{name:'Sistema'}));expect(screen.getAllByText(/Execu/).length).toBeGreaterThan(0);fireEvent.click(screen.getByRole('button',{name:'Limpar filtros'}));expect(screen.getByText('Briefing recebido')).toBeInTheDocument()});
