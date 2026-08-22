@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
-import type { ControlApi, ConnectionState } from '../api/controlApi';
+import type { BacklogResponse, ControlApi, ConnectionState } from '../api/controlApi';
 import { controlApi } from '../api/controlApi';
 import type { EventEnvelope, RunResponse } from '../generated/contracts';
 import { ConnectionStatus } from '../components/ConnectionStatus';
 import { EventTimeline } from '../components/EventTimeline';
 import { RunForm } from '../components/RunForm';
 import { RunSummary } from '../components/RunSummary';
+import { StoryList } from '../components/StoryList';
 
 type Phase = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -32,6 +33,7 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
   const [connection, setConnection] = useState<ConnectionState>('disconnected');
   const [run, setRun] = useState<RunResponse | null>(null);
   const [events, setEvents] = useState<EventEnvelope[]>([]);
+  const [backlog, setBacklog] = useState<BacklogResponse | null>(null);
   const [error, setError] = useState('');
   const [reconnectVersion, setReconnectVersion] = useState(0);
   const lastBriefing = useRef('');
@@ -63,6 +65,9 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
           if (incoming.run_id !== activeRun.run_id) return;
           lastSequence.current = Math.max(lastSequence.current, incoming.sequence);
           setEvents((current) => addEvent(current, incoming));
+          if (['STORY_FROZEN', 'PO_COMPLETED'].includes(incoming.type)) {
+            void client.getBacklog(activeRun.run_id, controller.signal).then(setBacklog).catch(() => undefined);
+          }
 
           // Estado e timestamps continuam tendo uma única fonte de verdade no
           // backend; o painel não replica a máquina de estados a partir do tipo.
@@ -115,6 +120,7 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
       );
       lastSequence.current = 0;
       setEvents([]);
+      setBacklog(null);
       setRun(created);
       setPhase('ready');
     } catch (reason) {
@@ -187,6 +193,7 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
       ) : (
         <>
           <RunSummary phase={phase} run={run} events={events} />
+          <StoryList backlog={backlog} />
           {phase === 'error' && (
             <button
               className="retry"

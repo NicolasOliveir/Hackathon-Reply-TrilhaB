@@ -1,0 +1,12 @@
+.agent-active { color: #8be1c4; }
+.agent-active::before { content: ""; display: inline-block; width: 8px; height: 8px; margin-right: 7px; border-radius: 50%; background: #70d6b2; box-shadow: 0 0 0 4px #70d6b222; }
+.stories-goal { color: #b9c5d1; margin: 14px 0 18px; }
+.story-grid { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.story-grid > li { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; padding: 14px; border-radius: 12px; background: #18222d; }
+.story-number { display: grid; width: 30px; height: 30px; place-items: center; border-radius: 50%; background: #1b3931; color: #8be1c4; font-weight: 800; }
+.story-grid h3 { margin: 2px 0 5px; font-size: 1rem; }
+.story-grid p { margin: 0; color: #aebac6; font-size: .86rem; }
+.story-grid details { margin-top: 8px; color: #badacb; font-size: .82rem; }
+.story-grid summary { min-height: 40px; padding: 8px 0; cursor: pointer; }
+.story-grid ul { margin: 4px 0 0; padding-left: 18px; color: #aebac6; }
+.story-grid ul li { margin: 6px 0; }

@@ -4,6 +4,8 @@ const CONTRACT_VERSION = '1.0.0';
 const MAX_RECONNECT_DELAY_MS = 5_000;
 
 export type ConnectionState = 'connected' | 'reconnecting' | 'disconnected';
+export type BacklogStory = { story_id: string; title: string; narrative: string; priority: string; ready: boolean; acceptance_criteria: { criterion_id: string; description: string }[] };
+export type BacklogResponse = { product_goal: string; stories: BacklogStory[] };
 
 export type FollowRunEventsOptions = {
   url: string;
@@ -20,6 +22,7 @@ export type ControlApi = {
     signal?: AbortSignal,
   ) => Promise<RunResponse>;
   getRun: (url: string, signal?: AbortSignal) => Promise<RunResponse>;
+  getBacklog: (runId: string, signal?: AbortSignal) => Promise<BacklogResponse>;
   followRunEvents: (options: FollowRunEventsOptions) => Promise<void>;
 };
 
@@ -185,6 +188,12 @@ export const controlApi: ControlApi = {
 
   getRun(url, signal) {
     return requestRun(url, { method: 'GET', signal });
+  },
+
+  async getBacklog(runId, signal) {
+    const response = await fetch(apiUrl(`/api/v1/runs/${runId}/backlog`), { signal });
+    if (!response.ok) throw await responseError(response);
+    return (await response.json()) as BacklogResponse;
   },
 
   async followRunEvents(options) {
