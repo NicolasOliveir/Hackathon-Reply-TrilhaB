@@ -25,7 +25,7 @@ do desenvolvedor; `Branch` deve existir no remoto enquanto a tarefa estiver ativ
 
 | ID | Entrega | Status | Responsável | Branch | Início | Dependências | Área exclusiva | Atualização |
 |---|---|---|---|---|---|---|---|---|
-| `I1-001` | Contratos e scaffold do monorepo | `EM_ANDAMENTO` | MatheusSchimieguelSilva | `task/I1-001-contracts` | 2026-08-22 12:55 -03:00 | — | `packages/contracts/**` e manifests raiz acordados | Reserva publicada; início dos schemas e scaffold |
+| `I1-001` | Contratos e scaffold do monorepo | `EM_REVISAO` | MatheusSchimieguelSilva | `task/I1-001-contracts` | 2026-08-22 12:55 -03:00 | — | `packages/contracts/**` e manifests raiz acordados | Branch publicada em `59aa77c`; 4 testes de contrato aprovados; aguardando revisão/merge |
 | `I1-002` | Compose, redes e fake worker | `LIVRE` | — | — | — | — | `infra/**`, `services/agent-worker/**` | — |
 | `I1-003` | Painel React responsivo com mocks | `LIVRE` | — | — | — | — | `apps/control-panel/**` | — |
 | `I1-004` | PostgreSQL, event store e API de runs | `LIVRE` | — | — | — | `I1-001` | `services/control-api/app/persistence/**`, `api/runs/**`, migrations | — |
