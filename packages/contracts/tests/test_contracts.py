@@ -10,12 +10,17 @@ import yaml
 from jsonschema import Draft202012Validator, FormatChecker
 from referencing import Registry, Resource
 
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from worker_contracts import ContractInvariantError, canonical_sha256, freeze_po_handoffs, validate_po_output
+
 
 CONTRACTS_DIR = Path(__file__).resolve().parents[1]
 SCHEMAS_DIR = CONTRACTS_DIR / "schemas" / "v1"
 EXAMPLES_DIR = CONTRACTS_DIR / "examples" / "v1"
 OPENAPI_PATH = CONTRACTS_DIR / "openapi" / "v1" / "openapi.yaml"
 STATE_MACHINE_PATH = CONTRACTS_DIR / "state-machine" / "v1.json"
+WORKER_MACHINE_PATH = CONTRACTS_DIR / "state-machine" / "worker-flow-v1.json"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -114,6 +119,11 @@ class ContractTestCase(unittest.TestCase):
                 "event-envelope.schema.json",
                 "agent-task-context.schema.json",
                 "fake-worker-output.schema.json",
+                "po-output.schema.json",
+                "po-dev-handoff.schema.json",
+                "dev-delivery.schema.json",
+                "qa-test-plan.schema.json",
+                "runner-result.schema.json",
             }
         }
         self.assertTrue(expected_files.issubset(referenced_files))
@@ -150,6 +160,35 @@ class ContractTestCase(unittest.TestCase):
             reachable = expanded
 
         self.assertEqual(reachable, states)
+
+    def test_po_semantics_and_handoff_hashes_are_deterministic(self) -> None:
+        backlog = load_json(EXAMPLES_DIR / "valid" / "po-output.json")
+        validate_po_output(backlog)
+        first = freeze_po_handoffs(backlog, {"prompt_version": "po-v1"})
+        second = freeze_po_handoffs(backlog, {"prompt_version": "po-v1"})
+        self.assertEqual(first, second)
+        self.assertEqual(first[0]["story_hash"], canonical_sha256(backlog["stories"][0]))
+        schema = self.schemas["https://reply.local/contracts/v1/po-dev-handoff.schema.json"]
+        self.assertEqual(list(Draft202012Validator(schema, registry=self.registry).iter_errors(first[0])), [])
+
+    def test_po_semantics_reject_invalid_cross_references(self) -> None:
+        original = load_json(EXAMPLES_DIR / "valid" / "po-output.json")
+        cases = []
+        cycle = json.loads(json.dumps(original)); cycle["stories"][0]["depends_on"] = ["STORY-001"]; cases.append(cycle)
+        coverage = json.loads(json.dumps(original)); coverage["coverage"][0]["story_ids"] = ["STORY-999"]; cases.append(coverage)
+        duplicate = json.loads(json.dumps(original)); duplicate["stories"].append(json.loads(json.dumps(duplicate["stories"][0]))); duplicate["stories"][1]["story_id"] = "STORY-002"; cases.append(duplicate)
+        for document in cases:
+            with self.assertRaises(ContractInvariantError):
+                validate_po_output(document)
+
+    def test_worker_flow_is_deterministic_and_has_rejection_loop(self) -> None:
+        transitions = load_json(WORKER_MACHINE_PATH)["transitions"]
+        keys = [(item["from"], item["event"]) for item in transitions]
+        self.assertEqual(len(keys), len(set(keys)))
+        self.assertIn({"from": "TEST_PLAN_READY", "event": "STORY_REJECTED", "to": "CHANGES_REQUESTED"}, transitions)
+        self.assertIn({"from": "CHANGES_REQUESTED", "event": "CODE_REDELIVERED", "to": "DELIVERY_READY"}, transitions)
+        self.assertIn({"from": "BRIEFING_READY", "event": "STORY_FROZEN", "to": "BACKLOG_FROZEN"}, transitions)
+        self.assertIn({"from": "BACKLOG_FROZEN", "event": "PO_COMPLETED", "to": "STORY_READY"}, transitions)
 
 
 if __name__ == "__main__":

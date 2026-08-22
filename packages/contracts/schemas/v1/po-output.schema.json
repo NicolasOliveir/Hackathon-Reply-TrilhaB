@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/contracts/v1/po-output.schema.json",
+  "title": "PoOutput",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contract_version", "run_id", "briefing_hash", "product_goal", "stories", "constraints", "assumptions", "out_of_scope", "coverage", "decisions", "needs_human"],
+  "properties": {
+    "contract_version": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/contractVersion"},
+    "run_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/uuid"},
+    "briefing_hash": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/sha256"},
+    "product_goal": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/nonEmptyText"},
+    "stories": {
+      "type": "array", "minItems": 1, "maxItems": 50,
+      "items": {"$ref": "#/$defs/story"}
+    },
+    "constraints": {"$ref": "#/$defs/textList"},
+    "assumptions": {"$ref": "#/$defs/textList"},
+    "out_of_scope": {"$ref": "#/$defs/textList"},
+    "coverage": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["briefing_item", "story_ids"],
+        "properties": {
+          "briefing_item": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/nonEmptyText"},
+          "story_ids": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/storyId"}}
+        }
+      }
+    },
+    "decisions": {"$ref": "#/$defs/textList"},
+    "needs_human": {
+      "type": "array", "maxItems": 20,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["question", "blocking"],
+        "properties": {"question": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/nonEmptyText"}, "blocking": {"type": "boolean"}}
+      }
+    }
+  },
+  "$defs": {
+    "textList": {"type": "array", "uniqueItems": true, "items": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/nonEmptyText"}},
+    "criterion": {
+      "type": "object", "additionalProperties": false,
+      "required": ["criterion_id", "order", "description", "verification"],
+      "properties": {
+        "criterion_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/criterionId"},
+        "order": {"type": "integer", "minimum": 1},
+        "description": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/nonEmptyText"},
+        "verification": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/nonEmptyText"}
+      }
+    },
+    "story": {
+      "type": "object", "additionalProperties": false,
+      "required": ["story_id", "title", "narrative", "priority", "depends_on", "acceptance_criteria", "ready"],
+      "properties": {
+        "story_id": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/storyId"},
+        "title": {"type": "string", "minLength": 1, "maxLength": 160},
+        "narrative": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/nonEmptyText"},
+        "priority": {"type": "string", "enum": ["MUST", "SHOULD", "COULD", "WONT"]},
+        "depends_on": {"type": "array", "uniqueItems": true, "items": {"$ref": "https://reply.local/contracts/v1/common.schema.json#/$defs/storyId"}},
+        "acceptance_criteria": {"type": "array", "minItems": 1, "items": {"$ref": "#/$defs/criterion"}},
+        "ready": {"type": "boolean"}
+      }
+    }
+  }
+}

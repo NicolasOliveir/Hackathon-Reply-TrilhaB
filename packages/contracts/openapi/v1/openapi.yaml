@@ -142,3 +142,13 @@ components:
       $ref: ../../schemas/v1/agent-task-context.schema.json
     FakeWorkerOutput:
       $ref: ../../schemas/v1/fake-worker-output.schema.json
+    PoOutput:
+      $ref: ../../schemas/v1/po-output.schema.json
+    PoDevHandoff:
+      $ref: ../../schemas/v1/po-dev-handoff.schema.json
+    DevDelivery:
+      $ref: ../../schemas/v1/dev-delivery.schema.json
+    QaTestPlan:
+      $ref: ../../schemas/v1/qa-test-plan.schema.json
+    RunnerResult:
+      $ref: ../../schemas/v1/runner-result.schema.json

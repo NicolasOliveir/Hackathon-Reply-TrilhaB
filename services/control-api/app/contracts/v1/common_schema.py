@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 from typing import Any, Literal
-from pydantic import AnyUrl, AwareDatetime, Field, RootModel
+from pydantic import AnyUrl, AwareDatetime, BaseModel, ConfigDict, Field, RootModel
 from uuid import UUID
 from enum import StrEnum
 
@@ -69,6 +69,19 @@ class EventType(StrEnum):
     TASK_QUEUED = 'TASK_QUEUED'
     AGENT_STARTED = 'AGENT_STARTED'
     FAKE_WORKER_COMPLETED = 'FAKE_WORKER_COMPLETED'
+    STORY_FROZEN = 'STORY_FROZEN'
+    PO_COMPLETED = 'PO_COMPLETED'
+    DEV_TASK_PLAN_CREATED = 'DEV_TASK_PLAN_CREATED'
+    ADR_RECORDED = 'ADR_RECORDED'
+    TOOL_EXECUTED = 'TOOL_EXECUTED'
+    CODE_DELIVERED = 'CODE_DELIVERED'
+    CODE_REDELIVERED = 'CODE_REDELIVERED'
+    TEST_PLAN_CREATED = 'TEST_PLAN_CREATED'
+    TEST_EXECUTED = 'TEST_EXECUTED'
+    FINDING_RECORDED = 'FINDING_RECORDED'
+    STORY_ACCEPTED = 'STORY_ACCEPTED'
+    STORY_REJECTED = 'STORY_REJECTED'
+    NEEDS_HUMAN = 'NEEDS_HUMAN'
     AGENT_FAILED = 'AGENT_FAILED'
     RUN_COMPLETED = 'RUN_COMPLETED'
     RUN_FAILED = 'RUN_FAILED'
@@ -85,3 +98,27 @@ class Scope(StrEnum):
 
 class Uri(RootModel[AnyUrl]):
     root: AnyUrl
+
+
+class NonEmptyText(RootModel[str]):
+    root: str = Field(..., max_length=4000, min_length=1)
+
+
+class StoryId(RootModel[str]):
+    root: str = Field(..., pattern='^STORY-[0-9]{3,}$')
+
+
+class CriterionId(RootModel[str]):
+    root: str = Field(..., pattern='^AC-[0-9]{3,}$')
+
+
+class ArtifactRef(BaseModel):
+    model_config = ConfigDict(
+        extra='forbid',
+    )
+    artifact_id: Uuid
+    kind: str = Field(..., max_length=80, min_length=1)
+    uri: Uri
+    media_type: str = Field(..., max_length=120, min_length=3)
+    size_bytes: int = Field(..., ge=0)
+    sha256: Sha256
