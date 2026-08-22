@@ -27,7 +27,7 @@ do desenvolvedor; `Branch` deve existir no remoto enquanto a tarefa estiver ativ
 |---|---|---|---|---|---|---|---|---|
 | `I1-001` | Contratos e scaffold do monorepo | `LIVRE` | — | — | — | — | `packages/contracts/**` e manifests raiz acordados | — |
 | `I1-002` | Compose, redes e fake worker | `LIVRE` | — | — | — | — | `infra/**`, `services/agent-worker/**` | — |
-| `I1-003` | Painel React responsivo com mocks | `LIVRE` | — | — | — | — | `apps/control-panel/**` | — |
+| `I1-003` | Painel React responsivo com mocks | `EM_ANDAMENTO` | Nicolau Codex | `task/I1-003-painel-react` | 2026-08-22 14:05 -03:00 | — | `apps/control-panel/**` | Reserva publicada para implementação automatizada do painel React mobile-first. |
 | `I1-004` | PostgreSQL, event store e API de runs | `LIVRE` | — | — | — | `I1-001` | `services/control-api/app/persistence/**`, `api/runs/**`, migrations | — |
 | `I1-005` | ContainerRuntime e despacho do fake worker | `LIVRE` | — | — | — | `I1-001`, `I1-002`, `I1-004` | `services/control-api/app/runtime/**`, `orchestration/**` | — |
 | `I1-006` | SSE e integração da timeline | `LIVRE` | — | — | — | `I1-003`, `I1-004` | endpoint SSE + integração de eventos no painel | — |
