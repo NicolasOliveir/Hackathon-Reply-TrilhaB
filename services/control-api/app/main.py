@@ -1,8 +1,8 @@
 """Aplicação FastAPI do control-api.
 
 Iteração 1: endpoints de run (`I1-004`), endpoints internos de tarefa e laço do
-scheduler (`I1-005`). O SSE (`I1-006`) registra seu router aqui sem alterar
-mais nada.
+scheduler (`I1-005`) e gateway de modelo (`I1-008`). O SSE (`I1-006`) registra
+seu router aqui sem alterar mais nada.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from .api.internal.model_invocations import router as model_invocations_router
 from .api.internal.tasks import router as internal_tasks_router
 from .api.runs.router import router as runs_router
 from .config import CONTRACT_VERSION, get_settings
@@ -38,6 +39,7 @@ def create_app() -> FastAPI:
     )
     app.include_router(runs_router)
     app.include_router(internal_tasks_router)
+    app.include_router(model_invocations_router)
 
     @app.get("/health", tags=["ops"])
     async def health() -> dict[str, str]:

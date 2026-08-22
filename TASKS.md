@@ -32,6 +32,7 @@ do desenvolvedor; `Branch` deve existir no remoto enquanto a tarefa estiver ativ
 | `I1-005` | ContainerRuntime e despacho do fake worker | `EM_ANDAMENTO` | Arthur Monteiro | `task/I1-005-container-runtime` | 2026-08-22 15:23 -03:00 | `I1-001`, `I1-002`, `I1-004` | `services/control-api/app/runtime/**`, `orchestration/**` | Reserva publicada; dependencias I1-001, I1-002 e I1-004 concluidas na main. |
 | `I1-006` | SSE e integração da timeline | `EM_ANDAMENTO` | MatheusSchimieguelSilva | `task/I1-006-sse-timeline` | 2026-08-22 15:26 -03:00 | `I1-004` para SSE; `I1-003` para painel | endpoint SSE e testes do backend; integração de eventos no painel após `I1-003` | Reserva publicada; backend SSE inicia sem tocar no front ainda em revisão. |
 | `I1-007` | E2E da fatia distribuída e isolamento | `LIVRE` | — | — | — | `I1-002`, `I1-005`, `I1-006` | `tests/e2e/**` e roteiro da fatia 1 | — |
+| `I1-008` | Chamadas reais a provedor LLM (gateway `LLM-01`) | `EM_ANDAMENTO` | Arthur Monteiro | `task/I1-008-model-gateway` | 2026-08-22 16:05 -03:00 | `I1-005` | `services/control-api/app/model_gateway/**`, `api/internal/model-invocations` | Tarefa recebida fora do quadro; registrada aqui para nao duplicar trabalho. Empilhada sobre `I1-005`, que ainda esta em revisao. |
 
 ## Detalhamento e critérios de conclusão
 
@@ -155,3 +156,20 @@ Terceira onda:
 - AWS, MongoDB, Redis ou broker de mensagens.
 
 Esses itens entram somente depois que `I1-007` provar a base distribuída.
+
+### I1-008 — Chamadas reais a provedor LLM
+
+Entrega:
+
+- porta de provedor unica com implementacoes `anthropic` (SDK), `codex` (CLI) e `echo`
+  (deterministico, sem rede);
+- endpoint `POST /internal/v1/tasks/{task_id}/model-invocations` protegido por escopo
+  `model:invoke`, concedido por papel;
+- tabela `model_invocations` com provedor, modelo, tokens, latencia, motivo da rota e erro,
+  sem persistir o prompt em claro;
+- agregado de uso no `meta` do evento de conclusao da tarefa;
+- roteamento de modelo e esforco por papel, sobrescrevivel por `MODEL_ROUTES`.
+
+Concluida quando um agente obtem resposta real do provedor sem que a credencial saia do
+`control-api`, o uso aparece no evento e o papel sem escopo recebe 403.
+

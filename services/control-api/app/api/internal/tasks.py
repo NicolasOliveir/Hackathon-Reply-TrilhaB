@@ -20,6 +20,7 @@ from sqlalchemy import select
 from ...config import CONTRACT_VERSION, Settings, get_settings
 from ...contracts.v1.fake_worker_output_schema import FakeWorkerOutput
 from ...db import transaction
+from ...model_gateway.gateway import usage_for_task
 from ...orchestration import tokens
 from ...persistence import idempotency
 from ...persistence.event_store import EventDraft, EventStore, utc_now
@@ -89,7 +90,7 @@ async def get_task_context(
             )
             .isoformat()
             .replace("+00:00", "Z"),
-            "scopes": tokens.FAKE_WORKER_SCOPES,
+            "scopes": tokens.scopes_for(task.role),
             # Vazio nesta iteração: o fake worker não recebe briefing, story nem
             # diff. Quando houver PO, Dev e QA, cada papel recebe aqui apenas as
             # fontes que a matriz de isolamento autoriza, com hash.
@@ -169,11 +170,17 @@ async def submit_task_output(
                 ),
             )
 
+        # LLM-01: "uso gera metadados no evento". O agregado de tokens e
+        # latencia da tarefa entra no `meta` do evento de conclusao, que e o
+        # campo que o EventEnvelope ja reserva para isso.
+        usage = await usage_for_task(session, task.task_id)
+
         store = EventStore(session, machine)
         drafts = [
             EventDraft(
                 type=event_type,
                 actor="fake_worker",
+                meta=usage.as_event_meta(),
                 task_id=task.task_id,
                 payload={
                     "status": payload.status,

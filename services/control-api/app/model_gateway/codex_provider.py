@@ -1,0 +1,159 @@
+"""Provedor Codex via CLI.
+
+O Codex não é uma API HTTP com chave: é um binário autenticado pela sessão do
+ChatGPT. A consequência arquitetural importa — a credencial vive no
+`~/.codex/` do processo do `control-api` e **não** é uma variável de ambiente
+que possa vazar para um container de agente.
+
+`--output-schema` faz o CLI validar a saída contra JSON Schema antes de devolver,
+o que dispensa parsing tolerante quando o chamador pede estrutura.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import shutil
+import tempfile
+import time
+from pathlib import Path
+
+from .base import (
+    ModelGatewayError,
+    ModelProvider,
+    ModelRequest,
+    ModelResponse,
+    ModelUsage,
+    ProviderNotConfigured,
+)
+
+DEFAULT_MODEL = "gpt-5.6-terra"
+DEFAULT_BINARY = "codex"
+
+# Sandbox mínimo: o gateway pede texto, não edição de arquivo. Deixar o CLI em
+# modo de escrita daria a ele mais poder do que a chamada precisa.
+SANDBOX = "read-only"
+
+
+class CodexProvider(ModelProvider):
+    name = "codex"
+
+    def __init__(
+        self,
+        binary: str = DEFAULT_BINARY,
+        default_model: str = DEFAULT_MODEL,
+        working_directory: str | None = None,
+    ) -> None:
+        self._binary = binary
+        self._default_model = default_model
+        self._working_directory = working_directory
+
+    def _resolve_binary(self) -> str:
+        resolved = shutil.which(self._binary)
+        if resolved is None:
+            raise ProviderNotConfigured(
+                f"binário '{self._binary}' não encontrado no PATH. O provedor codex "
+                "exige o CLI instalado e autenticado no container do control-api."
+            )
+        return resolved
+
+    async def invoke(self, request: ModelRequest) -> ModelResponse:
+        binary = self._resolve_binary()
+        model = request.model or self._default_model
+
+        with tempfile.TemporaryDirectory(prefix="codex-gateway-") as tmp:
+            schema_path = Path(tmp) / "schema.json"
+            result_path = Path(tmp) / "result.txt"
+
+            args = [
+                "exec",
+                "--sandbox",
+                SANDBOX,
+                "--output-last-message",
+                str(result_path),
+                "--model",
+                model,
+            ]
+            if request.output_schema is not None:
+                schema_path.write_text(
+                    json.dumps(request.output_schema, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+                args += ["--output-schema", str(schema_path)]
+            if request.effort:
+                args += ["--config", f"model_reasoning_effort={json.dumps(request.effort)}"]
+
+            prompt = request.prompt
+            if request.system:
+                prompt = f"{request.system}\n\n---\n\n{prompt}"
+            args.append(prompt)
+
+            started = time.perf_counter()
+            stdout, stderr, exit_code, timed_out = await self._run(
+                binary, args, request.timeout_seconds
+            )
+            latency_ms = int((time.perf_counter() - started) * 1000)
+
+            if timed_out:
+                raise ModelGatewayError(
+                    f"codex excedeu {request.timeout_seconds}s sem responder."
+                )
+            if exit_code != 0:
+                # O stderr do CLI pode conter caminho local; recortar evita que
+                # um detalhe de ambiente entre no event log.
+                raise ModelGatewayError(
+                    f"codex encerrou com codigo {exit_code}: {stderr.strip()[:500]}"
+                )
+
+            text = (
+                result_path.read_text(encoding="utf-8")
+                if result_path.exists()
+                else stdout
+            )
+
+        return ModelResponse(
+            provider=self.name,
+            model=model,
+            text=text,
+            # O CLI não expõe contagem de token na saída estruturada. Registrar
+            # zero é honesto; inventar estimativa corromperia a auditoria de uso.
+            usage=ModelUsage(),
+            stop_reason="end_turn",
+            latency_ms=latency_ms,
+            parsed=_maybe_json(text) if request.output_schema is not None else None,
+        )
+
+    async def _run(
+        self, binary: str, args: list[str], timeout_seconds: int
+    ) -> tuple[str, str, int | None, bool]:
+        process = await asyncio.create_subprocess_exec(
+            binary,
+            *args,
+            cwd=self._working_directory,
+            stdin=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), timeout=timeout_seconds
+            )
+        except asyncio.TimeoutError:
+            process.kill()
+            await process.wait()
+            return "", "", None, True
+
+        return (
+            stdout.decode("utf-8", errors="replace"),
+            stderr.decode("utf-8", errors="replace"),
+            process.returncode,
+            False,
+        )
+
+
+def _maybe_json(text: str) -> dict | None:
+    try:
+        parsed = json.loads(text)
+    except (ValueError, TypeError):
+        return None
+    return parsed if isinstance(parsed, dict) else None
