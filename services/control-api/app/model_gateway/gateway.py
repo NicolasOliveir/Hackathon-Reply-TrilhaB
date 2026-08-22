@@ -92,13 +92,6 @@ class ModelGateway:
             )
 
         route = self._router.route(role)
-        provider = self._providers.get(route.provider)
-        if provider is None:
-            raise ProviderNotConfigured(
-                f"provedor '{route.provider}' nao configurado; disponiveis: "
-                + ", ".join(self.available_providers())
-            )
-
         effective = ModelRequest(
             prompt=request.prompt,
             system=request.system,
@@ -128,6 +121,18 @@ class ModelGateway:
         )
         session.add(invocation)
         await session.flush()
+
+        provider = self._providers.get(route.provider)
+        if provider is None:
+            error = ProviderNotConfigured(
+                f"provedor '{route.provider}' nao configurado; disponiveis: "
+                + ", ".join(self.available_providers())
+            )
+            invocation.state = "FAILED"
+            invocation.error = str(error)[:1000]
+            invocation.finished_at = utc_now()
+            await session.flush()
+            raise error
 
         try:
             response = await provider.invoke(effective)

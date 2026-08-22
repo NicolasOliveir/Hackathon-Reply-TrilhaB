@@ -98,30 +98,36 @@ async def get_task_context(
             await session.execute(select(Run).where(Run.run_id == task.run_id))
         ).scalar_one()
         issued = utc_now()
+        receives_briefing = task.role in {"llm", "po"}
+        context_manifest = (
+            [
+                {
+                    "source_id": f"run:{run.run_id}:briefing",
+                    "source_type": "briefing",
+                    "hash": run.briefing_hash,
+                }
+            ]
+            if receives_briefing
+            else []
+        )
+        if task.role == "fake":
+            task_input = {"echo": "first-distributed-slice"}
+        elif receives_briefing:
+            task_input = {"briefing": run.briefing}
+        else:
+            task_input = {}
         return {
             "contract_version": CONTRACT_VERSION,
             "task_id": str(task.task_id),
             "run_id": str(task.run_id),
             "role": task.role,
             "issued_at": issued.isoformat().replace("+00:00", "Z"),
-            "expires_at": (
-                task.locked_at + timedelta(seconds=task.timeout_seconds)
-            )
+            "expires_at": (task.locked_at + timedelta(seconds=task.timeout_seconds))
             .isoformat()
             .replace("+00:00", "Z"),
             "scopes": tokens.scopes_for(task.role),
-            "context_manifest": [
-                {
-                    "source_id": f"run:{run.run_id}:briefing",
-                    "source_type": "briefing",
-                    "hash": run.briefing_hash,
-                }
-            ] if task.role in {"po", "llm"} else [],
-            "input": (
-                {"echo": "first-distributed-slice"}
-                if task.role == "fake"
-                else ({"briefing": run.briefing} if task.role in {"po", "llm"} else (task.input_payload or {}))
-            ),
+            "context_manifest": context_manifest,
+            "input": task_input,
         }
 
 

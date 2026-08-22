@@ -79,6 +79,8 @@ async def invoke_model(
     settings: Annotated[Settings, Depends(get_settings)],
     authorization: Annotated[str | None, Header()] = None,
 ) -> dict[str, Any]:
+    outcome = None
+    gateway_error: HTTPException | None = None
     async with transaction() as session:
         task = await _authenticate(session, task_id, authorization)
 
@@ -115,35 +117,42 @@ async def invoke_model(
                 ),
             )
         except ProviderRefused as exc:
-            raise HTTPException(
+            gateway_error = HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail={"error": "provider_refused", "category": exc.category},
-            ) from exc
+            )
         except ProviderNotConfigured as exc:
-            raise HTTPException(
+            gateway_error = HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail={"error": "provider_not_configured", "message": str(exc)},
-            ) from exc
+            )
         except ModelGatewayError as exc:
-            raise HTTPException(
+            gateway_error = HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail={"error": "provider_failed", "message": str(exc)},
-            ) from exc
+            )
 
-        response = outcome.response
-        return {
-            "contract_version": CONTRACT_VERSION,
-            "invocation_id": str(outcome.invocation_id),
-            "provider": response.provider,
-            "model": response.model,
-            "text": response.text,
-            "parsed": response.parsed,
-            "stop_reason": response.stop_reason,
-            "usage": {
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-                "cache_read_tokens": response.usage.cache_read_tokens,
-                "cache_write_tokens": response.usage.cache_write_tokens,
-                "latency_ms": response.latency_ms,
-            },
-        }
+    # O erro precisa sair somente depois do commit. Se escapar de
+    # ``transaction()`` acima, o rollback apaga justamente a auditoria FAILED
+    # ou REFUSED registrada pelo gateway.
+    if gateway_error is not None:
+        raise gateway_error
+
+    assert outcome is not None
+    response = outcome.response
+    return {
+        "contract_version": CONTRACT_VERSION,
+        "invocation_id": str(outcome.invocation_id),
+        "provider": response.provider,
+        "model": response.model,
+        "text": response.text,
+        "parsed": response.parsed,
+        "stop_reason": response.stop_reason,
+        "usage": {
+            "input_tokens": response.usage.input_tokens,
+            "output_tokens": response.usage.output_tokens,
+            "cache_read_tokens": response.usage.cache_read_tokens,
+            "cache_write_tokens": response.usage.cache_write_tokens,
+            "latency_ms": response.latency_ms,
+        },
+    }
