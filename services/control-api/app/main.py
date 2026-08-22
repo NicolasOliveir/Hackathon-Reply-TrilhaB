@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from .api.events.router import router as events_router
 from .api.runs.router import router as runs_router
 from .config import CONTRACT_VERSION, get_settings
 from .db import dispose_engine, init_engine
@@ -34,6 +35,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
     app.include_router(runs_router)
+    app.include_router(events_router)
 
     @app.get("/health", tags=["ops"])
     async def health() -> dict[str, str]:
