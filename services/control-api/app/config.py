@@ -22,6 +22,7 @@ DEFAULT_TASK_MAX_ATTEMPTS = 3
 # `rivexx-squad`, e o Docker prefixa o nome da rede com ele.
 DEFAULT_FAKE_WORKER_IMAGE = "rivexx/fake-worker:local"
 DEFAULT_PO_WORKER_IMAGE = "reply/po-worker:local"
+DEFAULT_DEV_WORKER_IMAGE = "reply/dev-worker:local"
 DEFAULT_AGENT_NETWORK = "rivexx-squad_agent_net"
 
 BASE_SCOPES = ("context:read", "output:write", "heartbeat:write")
@@ -73,6 +74,9 @@ class Settings:
     runtime_backend: str
     fake_worker_image: str
     po_worker_image: str
+    dev_worker_image: str
+    dev_worker_mode: str
+    dev_worker_script: Path
     allowed_images: frozenset[str]
     agent_network: str
     internal_base_url: str
@@ -169,6 +173,8 @@ def get_settings() -> Settings:
     allowed.add(fake_worker_image)
     po_worker_image = os.getenv("PO_WORKER_IMAGE", DEFAULT_PO_WORKER_IMAGE)
     allowed.add(po_worker_image)
+    dev_worker_image = os.getenv("DEV_WORKER_IMAGE", DEFAULT_DEV_WORKER_IMAGE)
+    allowed.add(dev_worker_image)
 
     model_provider = os.getenv("MODEL_PROVIDER", "echo").lower()
     initial_task_role = os.getenv(
@@ -195,6 +201,9 @@ def get_settings() -> Settings:
         runtime_backend=os.getenv("RUNTIME_BACKEND", "docker").lower(),
         fake_worker_image=fake_worker_image,
         po_worker_image=po_worker_image,
+        dev_worker_image=dev_worker_image,
+        dev_worker_mode=os.getenv("DEV_WORKER_MODE", "local").lower(),
+        dev_worker_script=Path(os.getenv("DEV_WORKER_SCRIPT", str(Path(__file__).resolve().parents[2] / "dev-worker" / "dev_worker.py"))).resolve(),
         allowed_images=frozenset(allowed),
         agent_network=os.getenv("AGENT_NETWORK", DEFAULT_AGENT_NETWORK),
         # O worker fala com a API pelo nome do serviço na agent_net, nunca pelo

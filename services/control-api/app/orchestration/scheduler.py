@@ -18,6 +18,9 @@ com 0 sem ter chamado de volta não conclui o run.
 
 from __future__ import annotations
 
+import asyncio
+import os
+import sys
 import uuid
 from dataclasses import dataclass
 
@@ -75,6 +78,19 @@ class Scheduler:
             .with_for_update(skip_locked=True)
         )
         task = result.scalar_one_or_none()
+        if task is None:
+            # Handoffs ficam WAITING durante a transação do PO. O scheduler
+            # promove um por vez, preservando ordem e o contrato observado.
+            task = (
+                await session.execute(
+                    select(AgentTask)
+                    .where(AgentTask.state == "WAITING", AgentTask.role == "dev",
+                           AgentTask.available_at <= utc_now())
+                    .order_by(AgentTask.available_at)
+                    .limit(1)
+                    .with_for_update(skip_locked=True)
+                )
+            ).scalar_one_or_none()
         if task is None:
             return None
 
@@ -161,7 +177,10 @@ class Scheduler:
                     )
                 ).scalar_one()
 
-                image = self._settings.po_worker_image if task.role == "po" else self._settings.fake_worker_image
+                image = {
+                    "po": self._settings.po_worker_image,
+                    "dev": self._settings.dev_worker_image,
+                }.get(task.role, self._settings.fake_worker_image)
                 execution, reused = await self._get_or_create_execution(session, task, image)
                 already_started = execution.container_id is not None
                 token: str | None = None
@@ -196,7 +215,45 @@ class Scheduler:
                 reused_execution=True,
             )
 
+        if claimed.role == "dev" and self._settings.dev_worker_mode == "local":
+            return await self._run_local_dev(claimed)
         return await self._run_container(claimed)
+
+    async def _run_local_dev(self, claimed: "_ClaimedTask") -> DispatchResult:
+        """Executa Dev no host/control-api, sem Docker e com ambiente explícito."""
+        if claimed.token is None:
+            raise RuntimeError("despacho local sem token")
+        process_id = f"local-dev-{claimed.execution_id}"
+        await self._record_started(claimed, process_id)
+        environment = {
+            "PATH": os.environ.get("PATH", ""),
+            "RUN_ID": str(claimed.run_id),
+            "TASK_ID": str(claimed.task_id),
+            "CONTROL_API_URL": self._settings.public_base_url,
+            "TASK_TOKEN": claimed.token,
+            "DEV_WORKSPACE_ROOT": str(self._settings.workspace_root / "generated"),
+        }
+        started = utc_now()
+        try:
+            process = await asyncio.create_subprocess_exec(
+                sys.executable, str(self._settings.dev_worker_script),
+                env=environment, stdin=asyncio.subprocess.DEVNULL,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.STDOUT,
+            )
+            try:
+                output, _ = await asyncio.wait_for(process.communicate(), claimed.timeout_seconds)
+                timed_out = False
+            except TimeoutError:
+                process.kill(); await process.wait(); output = b""; timed_out = True
+            result = _LocalResult(process_id, None if timed_out else process.returncode,
+                                  timed_out, utc_now(), output.decode(errors="replace")[-8000:])
+            await self._record_finished(claimed, result)
+            return DispatchResult(claimed.task_id, claimed.run_id, process_id,
+                                  result.exit_code, result.timed_out, claimed.reused)
+        except Exception as exc:
+            await self._record_runtime_failure(claimed, container_id=process_id,
+                                               reason=f"{type(exc).__name__}: {exc}")
+            raise
 
     async def _run_container(self, claimed: "_ClaimedTask") -> DispatchResult:
         if claimed.token is None:  # defesa: retomadas não chegam a este método
@@ -272,7 +329,9 @@ class Scheduler:
                                 "execution_id": str(claimed.execution_id),
                             },
                             meta={"container_id": container_id},
-                            drives_transition=True,
+                            # O primeiro worker move o agregado; workers de
+                            # story posteriores enriquecem a mesma timeline.
+                            drives_transition=claimed.role in {"fake", "po", "llm"},
                         )
                     ],
                 )
@@ -414,3 +473,16 @@ class _TaskView:
         self.attempt = claimed.attempt
         self.role = claimed.role
         self.timeout_seconds = claimed.timeout_seconds
+
+
+@dataclass(frozen=True)
+class _LocalResult:
+    container_id: str
+    exit_code: int | None
+    timed_out: bool
+    finished_at: object
+    logs_tail: str
+
+    @property
+    def succeeded(self) -> bool:
+        return self.exit_code == 0 and not self.timed_out

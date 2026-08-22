@@ -1,0 +1,226 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://reply.local/dev-worker/v1/dev-plan.schema.json",
+  "title": "DevImplementationPlan",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "story_id",
+    "tasks",
+    "file_changes",
+    "verifications",
+    "adrs",
+    "known_limitations"
+  ],
+  "properties": {
+    "story_id": {
+      "type": "string",
+      "pattern": "^STORY-[0-9]{3,}$"
+    },
+    "tasks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 30,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["task_id", "title", "criterion_ids"],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9-]{2,63}-T[0-9]+$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "criterion_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^AC-[0-9]{3,}$"
+            }
+          }
+        }
+      }
+    },
+    "file_changes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 100,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "operation", "summary", "task_ids"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "operation": {
+            "type": "string",
+            "enum": ["write", "delete"]
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 1000000
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "task_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Z][A-Z0-9-]{2,63}-T[0-9]+$"
+            }
+          }
+        }
+      }
+    },
+    "verifications": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["execution", "criterion_ids", "summary"],
+        "properties": {
+          "execution": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["argv", "cwd", "timeout_seconds", "profile"],
+            "properties": {
+              "argv": {
+                "type": "array",
+                "minItems": 1,
+                "maxItems": 64,
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 1000
+                }
+              },
+              "cwd": {
+                "type": "string",
+                "pattern": "^/workspace(/.*)?$"
+              },
+              "timeout_seconds": {
+                "type": "integer",
+                "minimum": 1,
+                "maximum": 1800
+              },
+              "profile": {
+                "type": "string",
+                "enum": ["python", "node", "api", "browser", "generic"]
+              },
+              "environment": {
+                "type": "object",
+                "maxProperties": 32,
+                "propertyNames": {
+                  "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+                },
+                "additionalProperties": {
+                  "type": "string",
+                  "maxLength": 2000
+                }
+              }
+            }
+          },
+          "criterion_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "pattern": "^AC-[0-9]{3,}$"
+            }
+          },
+          "summary": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        }
+      }
+    },
+    "adrs": {
+      "type": "array",
+      "maxItems": 20,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "adr_id",
+          "title",
+          "context",
+          "options",
+          "decision",
+          "rationale",
+          "consequences"
+        ],
+        "properties": {
+          "adr_id": {
+            "type": "string",
+            "pattern": "^ADR-[A-Z0-9-]+$"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "context": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "options": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            }
+          },
+          "decision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "consequences": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1000
+            }
+          }
+        }
+      }
+    },
+    "known_limitations": {
+      "type": "array",
+      "maxItems": 30,
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2000
+      }
+    }
+  }
+}
