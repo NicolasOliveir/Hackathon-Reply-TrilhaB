@@ -139,6 +139,9 @@ class AgentTask(Base):
         DateTime(timezone=True), nullable=True
     )
     locked_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # Contexto de handoff já filtrado pelo plano de controle. Para PO é nulo;
+    # para Dev contém somente a story congelada, nunca o briefing bruto.
+    input_payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -214,8 +217,7 @@ class ModelInvocation(Base):
         nullable=False,
     )
     task_id: Mapped[uuid.UUID] = _uuid_column(
-        ForeignKey(f"{CONTROL_SCHEMA}.agent_tasks.task_id", ondelete="RESTRICT"),
-        nullable=False,
+        ForeignKey(f"{CONTROL_SCHEMA}.agent_tasks.task_id", ondelete="RESTRICT"), nullable=False
     )
     role: Mapped[str] = mapped_column(String(16), nullable=False)
     provider: Mapped[str] = mapped_column(String(32), nullable=False)
@@ -223,39 +225,87 @@ class ModelInvocation(Base):
     effort: Mapped[str | None] = mapped_column(String(16), nullable=True)
     prompt_hash: Mapped[str] = mapped_column(String(71), nullable=False)
     prompt_chars: Mapped[int] = mapped_column(Integer, nullable=False)
-    response_chars: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
+    response_chars: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     state: Mapped[str] = mapped_column(String(16), nullable=False)
     input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    output_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    cache_read_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
-    cache_write_tokens: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="0"
-    )
+    output_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cache_read_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    cache_write_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     stop_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     refusal_category: Mapped[str | None] = mapped_column(String(64), nullable=True)
     route_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), nullable=False, server_default=func.now()
-    )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
-
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     __table_args__ = (
         CheckConstraint("prompt_chars >= 0", name="prompt_chars_non_negative"),
         CheckConstraint("input_tokens >= 0", name="input_tokens_non_negative"),
         CheckConstraint("output_tokens >= 0", name="output_tokens_non_negative"),
-        Index("ix_model_invocations_run_id", "run_id"),
-        Index("ix_model_invocations_task_id", "task_id"),
+        Index("ix_model_invocations_run_id", "run_id"), Index("ix_model_invocations_task_id", "task_id"),
     )
+
+
+class Backlog(Base):
+    __tablename__ = "backlogs"
+    backlog_id: Mapped[uuid.UUID] = _uuid_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = _uuid_column(
+        ForeignKey(f"{CONTROL_SCHEMA}.runs.run_id", ondelete="RESTRICT"), nullable=False
+    )
+    backlog_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    briefing_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    product_goal: Mapped[str] = mapped_column(Text, nullable=False)
+    constraints: Mapped[list] = mapped_column(JSONB, nullable=False)
+    assumptions: Mapped[list] = mapped_column(JSONB, nullable=False)
+    out_of_scope: Mapped[list] = mapped_column(JSONB, nullable=False)
+    needs_human: Mapped[list] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    __table_args__ = (UniqueConstraint("run_id", name="uq_backlogs_run_id"),)
+
+
+class Story(Base):
+    __tablename__ = "stories"
+    id: Mapped[uuid.UUID] = _uuid_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = _uuid_column(ForeignKey(f"{CONTROL_SCHEMA}.runs.run_id", ondelete="RESTRICT"), nullable=False)
+    story_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    title: Mapped[str] = mapped_column(String(160), nullable=False)
+    narrative: Mapped[str] = mapped_column(Text, nullable=False)
+    priority: Mapped[str] = mapped_column(String(16), nullable=False)
+    depends_on: Mapped[list] = mapped_column(JSONB, nullable=False)
+    ready: Mapped[bool] = mapped_column(nullable=False)
+    story_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    __table_args__ = (UniqueConstraint("run_id", "story_id", name="uq_stories_run_story"), Index("ix_stories_run_id", "run_id"))
+
+
+class AcceptanceCriterion(Base):
+    __tablename__ = "acceptance_criteria"
+    id: Mapped[uuid.UUID] = _uuid_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = _uuid_column(ForeignKey(f"{CONTROL_SCHEMA}.runs.run_id", ondelete="RESTRICT"), nullable=False)
+    story_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    criterion_id: Mapped[str] = mapped_column(String(32), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    verification: Mapped[str] = mapped_column(Text, nullable=False)
+    __table_args__ = (UniqueConstraint("run_id", "story_id", "criterion_id", name="uq_criteria_run_story_criterion"),)
+
+
+class PoDecision(Base):
+    __tablename__ = "po_decisions"
+    id: Mapped[uuid.UUID] = _uuid_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = _uuid_column(ForeignKey(f"{CONTROL_SCHEMA}.runs.run_id", ondelete="RESTRICT"), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    __table_args__ = (UniqueConstraint("run_id", "position", name="uq_po_decisions_run_position"),)
+
+
+class BacklogCoverage(Base):
+    __tablename__ = "backlog_coverage"
+    id: Mapped[uuid.UUID] = _uuid_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = _uuid_column(ForeignKey(f"{CONTROL_SCHEMA}.runs.run_id", ondelete="RESTRICT"), nullable=False)
+    position: Mapped[int] = mapped_column(Integer, nullable=False)
+    briefing_item: Mapped[str] = mapped_column(Text, nullable=False)
+    story_ids: Mapped[list] = mapped_column(JSONB, nullable=False)
+    __table_args__ = (UniqueConstraint("run_id", "position", name="uq_backlog_coverage_run_position"),)
 
 
 class IdempotencyKey(Base):
