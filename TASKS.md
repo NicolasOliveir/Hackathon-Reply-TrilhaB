@@ -35,6 +35,7 @@ do desenvolvedor; `Branch` deve existir no remoto enquanto a tarefa estiver ativ
 | `I1-008` | Gateway real Claude/Codex e primeiro worker LLM | `EM_REVISAO` | Nicolau Codex | `task/I1-008-model-gateway` | 2026-08-22 16:21 -03:00 | `I1-005` | `services/control-api/app/model_gateway/**`, `api/internal/model-invocations`, worker LLM | Commit `ed142cc`; 123 testes do control-api + 4 do worker aprovados com PostgreSQL real; Claude/Codex selecionáveis por ambiente. |
 | `I2-001` | Plano dos workers PO, Dev e QA | `EM_REVISAO` | Nicolau Codex | `task/I2-001-workers-plan` | 2026-08-22 16:34 -03:00 | `I1-008` | `plan.md` e detalhamento das tarefas I2 no quadro | Commit `2407789`; PO, Dev, QA, runner, toolchains, isolamento, gates e validação Trilha B especificados por subagentes. |
 | `I2-002` | Contratos, projeções e grafo dos workers | `EM_REVISAO` | Worker Contracts Codex | `task/I2-002-worker-contracts` | 2026-08-22 16:44 -03:00 | `I1-008`, `I2-001` | `packages/contracts/**`, contratos/projeções dos workers e state machine | Commit `33058e5`; 7 testes aprovados; schemas, invariantes, hashes e fluxo de rejeição/reentrega congelados. |
+| `I2-004` | PO Worker real e backlog persistido | `EM_ANDAMENTO` | PO Worker Codex | `task/I2-004-po-worker` | 2026-08-22 16:51 -03:00 | `I2-002` | `services/po-worker/**`, persistência/API de backlog e handoff PO -> Dev | Implementar worker Docker genérico com structured output, invariantes, reparo, auditoria e projeções atômicas. |
 
 ## Detalhamento e critérios de conclusão
 
