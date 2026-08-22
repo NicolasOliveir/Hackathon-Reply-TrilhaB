@@ -233,6 +233,27 @@ def test_role_scopes_keep_model_invoke_away_from_the_fake_worker():
     assert "model:invoke" in ROLE_SCOPES["qa"]
 
 
+def test_codex_schema_removes_unsupported_unique_items_without_mutating_source():
+    from app.model_gateway.codex_provider import _codex_output_schema
+
+    source = {
+        "type": "object",
+        "properties": {
+            "items": {
+                "type": "array",
+                "uniqueItems": True,
+                "items": {"$ref": "https://reply.local/common.json#/$defs/text"},
+            }
+        },
+    }
+
+    normalized = _codex_output_schema(source)
+
+    assert "uniqueItems" not in normalized["properties"]["items"]
+    assert normalized["properties"]["items"]["items"] == {"type": "string"}
+    assert source["properties"]["items"]["uniqueItems"] is True
+
+
 def test_scopes_come_from_a_single_source():
     """Emissor de token e gateway leem do mesmo lugar."""
     from app.config import ROLE_SCOPES
