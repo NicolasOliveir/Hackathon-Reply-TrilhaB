@@ -12,7 +12,9 @@ O humano entra uma vez, com o briefing. O squad faz o resto.
 |---|---|
 | [docs/DESCRICAO-TAREFA.md](docs/DESCRICAO-TAREFA.md) | Enunciado do hackathon — fonte, não editar |
 | [docs/ESPEC.md](docs/ESPEC.md) | Spec colaborativa: ADRs, contratos de agente, cenários da demo |
-| [docs/ENTENDIMENTO.md](docs/ENTENDIMENTO.md) | Leitura do enunciado, superfície de ataque do avaliador, ordem das decisões |
+| [docs/ENTENDIMENTO.md](docs/ENTENDIMENTO.md) | Leitura do enunciado, ataques prováveis e respostas arquiteturais |
+| [docs/ORQUESTRADOR.md](docs/ORQUESTRADOR.md) | Arquitetura implementável, protocolo e backlog técnico do orquestrador |
+| [docs/FLOWCHART.txt](docs/FLOWCHART.txt) | Topologia e sequência principal em formato texto |
 | [docs/PO/README.md](docs/PO/README.md) | Mapa dos artefatos que definem o comportamento do PO Agent |
 
 ## Como rodar
@@ -21,6 +23,7 @@ O humano entra uma vez, com o briefing. O squad faz o resto.
 
 ## Estado
 
-Fase de especificação. Ainda não há aplicação nem orquestrador; a definição do PO Agent está
-em rascunho avançado e as cinco ADRs da [ESPEC](docs/ESPEC.md) §4 continuam abertas. O caminho
-crítico começa por ADR-003 (stack) e ADR-001 (escopo do que é gerado ao vivo).
+Arquitetura do MVP definida; ainda não há aplicação nem orquestrador implementados. As cinco ADRs
+estruturais estão fechadas, PO e Dev têm contratos em rascunho avançado e o QA ainda precisa ser
+especificado. A implementação começa pela fatia distribuída mínima do
+[plano do orquestrador](docs/ORQUESTRADOR.md) §13.

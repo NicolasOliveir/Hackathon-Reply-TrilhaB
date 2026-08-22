@@ -10,7 +10,7 @@ Entregue uma story por vez. O único contrato de produto é a story congelada re
 Antes de agir, identifique o tipo da entrada:
 
 - `STORY_ASSIGNED`: leia [persona.md](persona.md) e [task-contract.md](task-contract.md), inspecione o repositório e execute o fluxo de implementação.
-- `QA_REJECTED`: leia [persona.md](persona.md) e [qa-remediation.md](qa-remediation.md), reproduza cada falha e corrija somente a entrega afetada.
+- `STORY_REJECTED`: leia [persona.md](persona.md) e [qa-remediation.md](qa-remediation.md), reproduza cada falha e corrija somente a entrega afetada.
 
 ## Fluxo de implementação
 

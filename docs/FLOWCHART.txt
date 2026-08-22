@@ -1,0 +1,70 @@
+# ARQUITETURA DO ORQUESTRADOR — MVP
+
+                         PUBLIC_NET
+┌──────────────────────┐  REST + SSE  ┌────────────────────────────────────────┐
+│ Browser              │◄────────────►│ CONTROL-API / ORCHESTRATOR             │
+│ React + TypeScript   │              │ container Python                       │
+│ desktop + mobile     │              │                                        │
+└──────────────────────┘              │ FastAPI                                │
+                                      │ LangGraph determinístico               │
+                                      │ scheduler + context policy             │
+                                      │ event store + projections              │
+                                      │ model gateway                          │
+                                      │ DockerContainerRuntime                  │
+                                      └──────────────┬───────────────┬─────────┘
+                                                     │               │
+                                  CONTROL_NET        │               │ Docker SDK
+                                                     ▼               ▼
+                                      ┌────────────────────┐  /var/run/docker.sock
+                                      │ PostgreSQL         │          │
+                                      │ único banco        │          ▼
+                                      │                    │  ┌──────────────────┐
+                                      │ control schema     │  │ Docker Engine    │
+                                      │ product schema     │  └────────┬─────────┘
+                                      └────────────────────┘           │ cria/remove
+                                                                       ▼
+                  AGENT_NET                         CONTAINERS EFÊMEROS POR TAREFA
+       ┌───────────────────────────────────────────────────────────────────────────┐
+       │                                                                           │
+       │   ┌───────────┐    ┌────────────┐    ┌───────────┐    ┌───────────────┐   │
+       │   │ PO worker │    │ Dev worker │    │ QA worker │    │ Test runner   │   │
+       │   │ briefing  │    │ story + RW │    │ story + RO│    │ sem LLM       │   │
+       │   └─────┬─────┘    └──────┬─────┘    └─────┬─────┘    └──────┬────────┘   │
+       │         │                 │                │                 │            │
+       │         └─────────────────┴────────────────┴─────────────────┘            │
+       │                    SOMENTE API CENTRAL                                    │
+       └──────────────────────────────┬────────────────────────────────────────────┘
+                                      │ context / heartbeat / model / output
+                                      └──────────────► CONTROL-API
+
+Volumes:
+  run_workspaces ──► Dev (RW), QA (RO), runner (RO)
+  run_artifacts  ──► QA/runner produzem; API registra hash e metadados
+
+Proibições:
+  agente ─X─► PostgreSQL
+  agente ─X─► outro agente
+  agente ─X─► Docker socket
+  Dev/QA ─X─► briefing bruto
+
+
+# SEQUÊNCIA PRINCIPAL
+
+Humano
+  │ POST briefing (única intervenção normal)
+  ▼
+RECEIVED
+  ▼
+PO_QUEUED ─► PO_RUNNING ─► BACKLOG_FROZEN
+  ▼
+DEV_QUEUED ─► DEV_RUNNING ─► DELIVERY_READY
+  ▼
+QA_QUEUED ─► QA_RUNNING ─► TESTS_READY
+  ▼
+RUNNER_QUEUED ─► RUNNER_RUNNING
+  ├── PASS ─► STORY_ACCEPTED ─► próxima story ─► COMPLETED
+  └── FAIL ─► STORY_REJECTED ─► DEV_QUEUED
+                                  └─ após limite ─► NEEDS_HUMAN
+
+Cada seta relevante gera um evento append-only com correlation_id e causation_id.
+Nenhum agente altera o estado diretamente; ele submete uma saída e a API executa a transição.

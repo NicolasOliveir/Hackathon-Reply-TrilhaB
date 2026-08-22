@@ -6,7 +6,7 @@ O retorno do QA é uma nova entrada da mesma story, não autorização para rein
 
 ```json
 {
-  "event_type": "QA_REJECTED",
+  "event_type": "STORY_REJECTED",
   "story_id": "NC-003",
   "story_hash": "sha256:...",
   "implementation_revision": 1,

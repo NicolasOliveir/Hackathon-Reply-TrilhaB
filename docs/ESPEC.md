@@ -1,9 +1,9 @@
 # SPEC — Squad Autônomo de Agentes · Projeto Rivexx
 
 > **Status do documento:** rascunho colaborativo
-> **Última atualização:** 2026-08-22 — consolidação dos artefatos do PO Agent
+> **Última atualização:** 2026-08-22 — arquitetura do orquestrador MVP e divisão de trabalho
 > **Regra:** nada aqui é decidido até estar marcado `DECIDIDO`. Toda mudança em seção `DECIDIDO` vira ADR nova, não edição silenciosa.
-> **Leitura do enunciado, superfície de ataque do avaliador e recomendações abertas:** [ENTENDIMENTO.md](ENTENDIMENTO.md) — análise, não decisão.
+> **Leitura do enunciado, superfície de ataque do avaliador e estado das respostas:** [ENTENDIMENTO.md](ENTENDIMENTO.md) — análise, não decisão.
 
 ---
 
@@ -32,16 +32,16 @@ Convenção de PR: uma seção por PR. Título `spec: <seção>`. Discussão fic
 
 | ID | Restrição | Como se verifica |
 |---|---|---|
-| `R1` | Aplicação responsiva (registro pelo celular no chão de fábrica) | `TODO` — definir viewport de teste |
-| `R2` | Interface operável sem treinamento técnico | `TODO` — definir critério objetivo, não subjetivo |
-| `R3` | Todo registro com evidência auditável (data, responsável, turno, equipamento) | `TODO` |
-| `R4` | Rastreabilidade de lote em toda a cadeia produtiva | `TODO` |
+| `R1` | Aplicação responsiva (registro pelo celular no chão de fábrica) | em 320 px, fluxos P0 não têm rolagem horizontal e ações permanecem visíveis |
+| `R2` | Interface operável sem treinamento técnico | fluxos P0 têm labels textuais, uma ação primária visível por etapa e erros junto ao campo, sem depender de manual externo |
+| `R3` | Todo registro com evidência auditável (data, responsável, turno, equipamento) | persistência e tela exibem os quatro campos, que não podem ser alterados após salvar |
+| `R4` | Rastreabilidade de lote em toda a cadeia produtiva | consulta do lote seed retorna matéria-prima, fornecedor, equipamento, turno, operadores e lotes correlatos |
 
 > ⚠️ Restrição sem meio de verificação é decoração. Preencher a coluna direita é pré-requisito para o QA Agent existir de verdade.
 
-O guia [acceptancecriteria.md](PO/acceptancecriteria.md) contém exemplos úteis para `R1`–`R4`,
-mas eles são padrões de escrita, não metas de produto aprovadas. As verificações acima continuam
-abertas até que seus valores objetivos sejam acordados e registrados nesta ESPEC.
+As verificações acima são os alvos objetivos do MVP. O guia
+[acceptancecriteria.md](PO/acceptancecriteria.md) orienta como o PO deve transcrevê-las para
+critérios canônicos das stories aplicáveis.
 
 ---
 
@@ -51,8 +51,8 @@ Mapeamento entregável → artefato no repo.
 
 | Entregável exigido | Onde vive | Gerado por | Status |
 |---|---|---|---|
-| Squad funcional com comunicação visível | `/squad` | humano (plataforma) | `TODO` |
-| Aplicação web rodando localmente, 3 cenários | `/app` | Dev Agent (features) | `TODO` |
+| Squad funcional com comunicação visível | `/services` + `/apps/control-panel` | humano (plataforma) | `TODO` |
+| Aplicação web rodando localmente, 3 cenários | `/workspace-template` + volume da execução | Dev Agent (features) | `TODO` |
 | Backlog do PO Agent | projeção do event log | PO Agent | `TODO` |
 | Log de decisões técnicas | projeção do event log | Dev Agent | `TODO` |
 | Relatório de QA com evidências | projeção do event log | QA Agent + runner | `TODO` |
@@ -69,43 +69,47 @@ operacionais ficam próximos de cada agente e devem implementar esse contrato, s
 | [`docs/PO/persona.md`](PO/persona.md) | missão, autoridade e limites de contexto do PO | rascunho avançado |
 | [`docs/PO/SKILL.md`](PO/SKILL.md) | procedimento de decomposição do briefing | rascunho avançado |
 | [`docs/PO/acceptancecriteria.md`](PO/acceptancecriteria.md) | regras para critérios de aceitação verificáveis | rascunho avançado |
-| Dev Agent | persona, instruções e contrato operacional | `TODO` |
+| [`docs/dev/persona.md`](dev/persona.md) | missão, autoridade e limites de contexto do Dev | rascunho avançado |
+| [`docs/dev/SKILL.md`](dev/SKILL.md) | implementação de story e entrada de remediação | rascunho avançado |
+| [`docs/dev/task-contract.md`](dev/task-contract.md) | tasks, ADR e pacote de entrega | rascunho avançado |
+| [`docs/dev/qa-remediation.md`](dev/qa-remediation.md) | protocolo de correção após reprovação | rascunho avançado |
 | QA Agent | persona, instruções e contrato operacional | `TODO` |
 
 O [mapa dos artefatos do PO](PO/README.md) explicita a precedência entre esses documentos e a
 ESPEC.
 
-Enquanto ADR-003 estiver aberta, `docs/PO` é a fonte de design do agente. Quando o runtime for
-criado, `/squad/agents/po` deverá carregar esses artefatos diretamente ou empacotá-los de forma
-automatizada; não deve existir uma segunda cópia mantida manualmente.
+`docs/PO` e `docs/dev` são as fontes de design dos agentes. O runtime deverá carregar esses
+artefatos diretamente ou empacotá-los de forma automatizada; não deve existir uma segunda cópia
+mantida manualmente.
 
 ---
 
-## 3. Estrutura de repositório proposta
+## 3. Estrutura de repositório
 
-`ABERTO` — dono: `@quem` · prazo: `AAAA-MM-DD`
+`DECIDIDO` — monorepo Python + TypeScript, detalhado em [ORQUESTRADOR.md](ORQUESTRADOR.md).
 
 ```
 /
-├── README.md                ← como rodar a demo (escrever por último)
+├── README.md
+├── /apps
+│   └── /control-panel       ← React + TypeScript + Vite
+├── /services
+│   ├── /control-api         ← FastAPI, grafo, scheduler, persistência
+│   ├── /agent-worker        ← runtime base dos papéis PO / Dev / QA
+│   └── /test-runner         ← execução determinística sem LLM
+├── /packages
+│   └── /contracts           ← OpenAPI e JSON Schemas versionados
+├── /workspace-template      ← scaffold limpo entregue ao Dev; sem briefing
+├── /infra
+│   └── compose.yaml         ← serviços fixos, redes e volumes locais
 ├── /docs
 │   ├── DESCRICAO-TAREFA.md  ← fonte do desafio; não editar
 │   ├── ENTENDIMENTO.md      ← análise de avaliação; não contém decisões
-│   ├── ESPEC.md             ← este documento; contrato entre agentes
-│   ├── /PO                  ← persona e instruções operacionais do PO Agent
-│   └── /adr                 ← decisões da equipe humana
-├── /squad
-│   ├── /agents
-│   │   ├── po/              ← carregamento runtime dos contratos em docs/PO
-│   │   ├── dev/
-│   │   └── qa/
-│   ├── /graph               ← máquina de estados, transições
-│   ├── /bus                 ← event log append-only
-│   ├── /schemas             ← contratos compartilhados (Zod/Pydantic)
-│   └── /projections         ← backlog, ADRs, relatório QA, feed
-├── /app                     ← aplicação Rivexx
-│   ├── /platform            ← construído por humanos (scaffold)
-│   └── /features            ← escrito pelo Dev Agent ao vivo
+│   ├── ESPEC.md             ← contrato entre agentes
+│   ├── ORQUESTRADOR.md      ← arquitetura e backlog técnico do MVP
+│   ├── /PO                  ← definição operacional do PO
+│   ├── /dev                 ← definição operacional do Dev
+│   └── /qa                  ← definição operacional do QA, a criar
 ├── /tests                   ← escrito pelo QA Agent, executado pelo runner
 └── /seeds                   ← dados sintéticos Rivexx
 ```
@@ -116,39 +120,55 @@ automatizada; não deve existir uma segunda cópia mantida manualmente.
 
 > Não confundir com o log de ADRs do Dev Agent. Este é o nosso.
 
-**Ordem de resolução** (derivada dos bloqueios abaixo, detalhada em [ENTENDIMENTO.md](ENTENDIMENTO.md) §5):
-ADR-003 e ADR-001 destravam a estrutura do repo e o cronograma → ADR-002 e ADR-004 fecham o contrato do QA → ADR-005 corre em paralelo (é local ao app).
-A coluna "como se verifica" de `R1`–`R4` na §1 bloqueia o contrato do QA sem estar numerada como ADR.
+As cinco decisões estruturais foram fechadas para o MVP. Arquitetura operacional, limites e
+evolução futura estão em [ORQUESTRADOR.md](ORQUESTRADOR.md). Os alvos verificáveis de `R1`–`R4`
+também foram fixados na §1 e devem aparecer nos critérios das stories aplicáveis.
 
 ### ADR-001 — Escopo do que o squad gera ao vivo
-**Status:** `ABERTO` · dono `@quem`
+**Status:** `DECIDIDO` em 2026-08-22
 **Contexto:** geração live completa é frágil na demo; replay pré-gravado é desonesto e detectável.
 **Opções:** (a) live puro · (b) replay · (c) híbrido — plataforma humana + features geradas ao vivo.
-**Decisão:** `TODO`
-**Consequência:** `TODO`
+**Decisão:** híbrido. Control plane, painel, contratos, imagens-base, scaffold e seeds são a
+plataforma humana. PO gera backlog, Dev implementa a feature, QA cria os testes e runner produz
+o veredito durante a execução.
+**Consequência:** a demo deve distinguir visualmente plataforma preexistente de artefato produzido
+pelo squad e continuar funcionando com briefing novo.
 
 ### ADR-002 — Topologia de orquestração
-**Status:** `ABERTO` · dono `@quem`
+**Status:** `DECIDIDO` em 2026-08-22
 **Opções:** (a) supervisor LLM roteando · (b) chat livre entre agentes · (c) grafo de estados determinístico com LLM só dentro dos nós.
-**Decisão:** `TODO`
-**Consequência:** `TODO`
+**Decisão:** grafo determinístico em LangGraph; cada papel executa como tarefa externa em container
+efêmero e se comunica apenas pela API central.
+**Consequência:** agentes não roteiam o fluxo nem falam diretamente entre si. Toda transição é
+validada, persistida e retomável por checkpoint.
 
 ### ADR-003 — Stack do orquestrador
-**Status:** `ABERTO` · dono `@quem`
+**Status:** `DECIDIDO` em 2026-08-22
 **Opções:** (a) LangGraph/Python — melhor em grafo, checkpoint, resume · (b) TypeScript no monorepo — tipos compartilhados com o app, uma linguagem só.
 **Trade-off central:** qualidade do grafo vs. atrito de duas linguagens.
-**Decisão:** `TODO`
+**Decisão:** Python com FastAPI, Pydantic, SQLAlchemy, Alembic e LangGraph no backend; React,
+TypeScript e Vite no painel; OpenAPI/JSON Schema como contrato entre linguagens; Docker Compose e
+Docker SDK for Python no runtime local.
+**Consequência:** monorepo com duas linguagens e clientes TypeScript gerados a partir do contrato,
+sem duplicar tipos manualmente.
 
 ### ADR-004 — Fonte do veredito de aceite
-**Status:** `ABERTO` · dono `@quem`
+**Status:** `DECIDIDO` em 2026-08-22
 **Questão:** quem declara uma story aprovada — o QA Agent (LLM) ou o test runner?
 **Nota:** se for o LLM, ele é o elo fraco da avaliação e o ponto óbvio de ataque do avaliador.
-**Decisão:** `TODO`
+**Decisão:** o QA cria plano e testes; um runner sem LLM executa e a API deriva o veredito de
+resultados estruturados e exit code.
+**Consequência:** nenhum agente possui permissão para emitir `STORY_ACCEPTED`; quebrar um teste de
+propósito produz reprovação auditável.
 
 ### ADR-005 — Persistência e modelo de rastreabilidade
-**Status:** `ABERTO` · dono `@quem`
+**Status:** `DECIDIDO` em 2026-08-22
 **Opções:** (a) Postgres + CTE recursiva sobre tabela de arestas · (b) grafo dedicado (Neo4j) · (c) closure table.
-**Decisão:** `TODO`
+**Decisão:** uma instância PostgreSQL, com modelo relacional para invariantes e relações, `JSONB`
+para payloads de agente e CTE recursiva sobre tabela de arestas para genealogia de lote. MongoDB
+não participa do MVP.
+**Consequência:** somente a API central recebe credencial de banco. Schemas lógicos `control` e
+`product` separam orquestração e Rivexx sem introduzir um segundo datastore.
 
 ### ADR-00N — `TODO`
 
@@ -157,23 +177,38 @@ A coluna "como se verifica" de `R1`–`R4` na §1 bloqueia o contrato do QA sem 
 ## 5. Arquitetura do squad
 
 ### 5.1 Topologia
-`BLOQUEADO` por ADR-002. Preencher depois.
+
+`DECIDIDO` — `control-api` é API, scheduler e grafo no MVP. Ele lança `po-worker`, `dev-worker`,
+`qa-worker` e `test-runner` efêmeros pelo Docker Engine. Workers não acessam banco, Docker socket
+ou outros workers. Ver [topologia completa](ORQUESTRADOR.md#4-topologia) e
+[fluxo em texto](FLOWCHART.txt).
 
 ### 5.2 Event log
-`TODO`
 
-Envelope proposto — revisar em grupo:
+`DECIDIDO` — PostgreSQL append-only. O event log é a fonte auditável; backlog, ADRs e relatório
+de QA são projeções. Checkpoints do LangGraph servem apenas para retomada técnica.
+
+Envelope mínimo:
 
 ```json
 {
   "event_id": "uuid",
+  "sequence": 42,
+  "run_id": "uuid",
   "ts": "ISO-8601",
   "actor": "po | dev | qa | runner | system",
   "type": "STORY_CREATED",
   "correlation_id": "NC-003",
   "causation_id": "event_id do evento que disparou este",
+  "task_id": "uuid ou null",
   "payload": {},
-  "meta": { "model": "", "tokens_in": 0, "tokens_out": 0, "latency_ms": 0 }
+  "meta": {
+    "model": "",
+    "tokens_in": 0,
+    "tokens_out": 0,
+    "latency_ms": 0,
+    "container_id": ""
+  }
 }
 ```
 
@@ -181,7 +216,8 @@ Envelope proposto — revisar em grupo:
 
 | Tipo | Emissor | Payload |
 |---|---|---|
-| `BRIEFING_RECEIVED` | system | `TODO` |
+| `RUN_CREATED` | system | run, estado inicial |
+| `BRIEFING_RECEIVED` | system | run, briefing hash, tamanho |
 | `STORY_CREATED` | po | story completa |
 | `BACKLOG_PRIORITIZED` | po | ordem + justificativas |
 | `PO_DECISION_RECORDED` | po | título, tipo, justificativa, alternativa descartada |
@@ -189,17 +225,26 @@ Envelope proposto — revisar em grupo:
 | `CAPACIDADE_ADIADA` | po | capacidade, origem, motivo do corte |
 | `BACKLOG_COVERAGE_CHECKED` | po | capacidade/restrição → story + critério ou decisão |
 | `STORY_FROZEN` | po | id, hash dos critérios |
-| `STORY_ASSIGNED` | system | `TODO` |
-| `ADR_RECORDED` | dev | `TODO` |
-| `CODE_COMMITTED` | dev | `TODO` |
-| `TEST_PLAN_CREATED` | qa | `TODO` |
-| `TEST_EXECUTED` | runner | `TODO` |
-| `STORY_REJECTED` | runner | `TODO` |
-| `STORY_ACCEPTED` | runner | `TODO` |
+| `TASK_QUEUED` | system | task, papel, tentativa, timeout |
+| `AGENT_STARTED` | system | task, papel, container, image digest |
+| `STORY_ASSIGNED` | system | task, story id, versão, frozen hash |
+| `TASKS_PLANNED` | dev | story, tasks e cobertura dos critérios |
+| `ADR_RECORDED` | dev | story e ADR estruturada |
+| `CODE_DELIVERED` | dev | revisão, alterações, evidências e limitações |
+| `CODE_REDELIVERED` | dev | revisão anterior, nova revisão e remediações |
+| `TEST_PLAN_CREATED` | qa | story, casos e critérios cobertos |
+| `TEST_EXECUTED` | runner | comando, exit code, resultados e evidências |
+| `STORY_REJECTED` | system | story, revisão e findings derivados do runner |
+| `STORY_ACCEPTED` | system | story, revisão e test execution id |
+| `AGENT_FAILED` | system | task, tentativa, erro sanitizado e retry |
 | `NEEDS_HUMAN` | qualquer | motivo, estado |
 
 ### 5.3 Protocolo de comunicação
-`TODO` — decidir entre artefatos estruturados validados por schema vs. mensagens em texto livre. Registrar o porquê.
+
+`DECIDIDO` — REST interno com artefatos estruturados, Pydantic/JSON Schema, idempotency key e
+token efêmero por tarefa. Saída em texto livre pode existir dentro do payload, mas nunca controla
+transição. O painel recebe atualizações por SSE. Contrato em
+[ORQUESTRADOR.md §8](ORQUESTRADOR.md#8-comunicação-pela-api-central).
 
 ### 5.4 Isolamento de contexto
 
@@ -208,8 +253,8 @@ Matriz do que cada agente pode ler. **Preencher em conjunto — é aqui que os p
 | | briefing bruto | story + AC | repositório / diff | ADRs do Dev | saída do runner |
 |---|---|---|---|---|---|
 | PO | sim | sim | não | não | resumo apenas |
-| Dev | `TODO` | `TODO` | `TODO` | `TODO` | `TODO` |
-| QA | `TODO` | `TODO` | `TODO` | `TODO` | `TODO` |
+| Dev | não | story atribuída | leitura/escrita no workspace limpo | sim | findings da revisão atual |
+| QA | não | story atribuída | leitura do código e diff; escrita no volume de testes | sim | sim |
 
 > O briefing entra em exatamente um nó (PO). Isso é requisito do enunciado, não estilo. Vale ter uma forma de *demonstrar* na demo que o prompt do Dev não contém o briefing.
 
@@ -316,18 +361,22 @@ reporta essa string sem paráfrase, uma vez e na ordem declarada.
 
 ---
 
-### 6.2 Dev Agent — `TODO`
+### 6.2 Dev Agent — `RASCUNHO AVANÇADO · ARTEFATOS CRIADOS`
 
-**Contrato em uma frase:** `TODO`
+**Artefatos operacionais:** [persona](dev/persona.md) · [implementação de story](dev/SKILL.md) ·
+[contrato de tasks e entrega](dev/task-contract.md) · [remediação de QA](dev/qa-remediation.md).
 
-**Funções:** `TODO`
+**Contrato em uma frase:** transforma uma story congelada em incremento funcional, tasks técnicas,
+ADRs e evidências sem ler o briefing ou alterar a decisão de produto.
 
-**Limites duros:** `TODO`
-> Fronteira mais escorregadia a resolver: ADR técnica vs. decisão de produto. Onde termina "escolhi Postgres porque X" e começa "decidi que o campo de foto é opcional"? A segunda é do PO.
+**Funções:** decompor, implementar, verificar, entregar evidências e corrigir findings reproduzidos
+do QA. Cada critério deve estar ligado a task e evidência.
 
-**Schema de saída (ADR):** `TODO`
+**Limites duros:** não lê briefing; não altera story; não aprova a própria entrega; não esconde
+teste falho; não transforma decisão técnica em regra de produto.
 
-**Limitações operacionais:** `TODO`
+**Schemas de saída:** definidos em [task-contract.md](dev/task-contract.md). Após três reprovações
+consecutivas do mesmo finding sem evidência nova, emite `NEEDS_HUMAN`.
 
 ---
 
@@ -338,7 +387,8 @@ reporta essa string sem paráfrase, uma vez e na ordem declarada.
 **Funções:** `TODO`
 
 **Limites duros:** `TODO`
-> Depende de ADR-004. Se o veredito vier do runner, o QA escreve o teste e não julga o resultado.
+> ADR-004 decidiu: o QA escreve o plano e os testes, enquanto o runner executa e fornece o
+> resultado determinístico. O contrato do QA deve implementar essa separação.
 
 **Schema de saída (plano de teste):** `TODO`
 
@@ -352,7 +402,9 @@ reporta essa string sem paráfrase, uma vez e na ordem declarada.
 `TODO` — entidades candidatas: Lote (MP / processo / acabado), Ordem de Produção, Equipamento, Turno, Operador, Fornecedor, Não Conformidade, Análise de Causa, Plano de Ação, Ação, Evidência.
 
 ### 7.2 Rastreabilidade
-`BLOQUEADO` por ADR-005.
+
+`DECIDIDO` por ADR-005 — PostgreSQL com tabela de arestas entre lotes e CTE recursiva. O modelo
+físico e os critérios de profundidade/ciclo ainda devem ser detalhados junto dos seeds.
 
 Duas queries a especificar:
 - **Genealogia:** dado um lote de produto acabado, subir até fornecedor e descer até expedição.
@@ -390,33 +442,33 @@ Duas queries a especificar:
 | Latência de LLM mata o ritmo | avaliador perde interesse | streaming do feed, pré-aquecimento | `@quem` | `TODO` |
 | PO não converge nos 3 cenários | requisito não coberto | teste de convergência antecipado | `@quem` | `TODO` |
 | Orquestração parece teatro | reprovação direta pelo enunciado | isolamento de contexto demonstrável | `@quem` | `TODO` |
+| Comprometimento do Docker socket | acesso equivalente ao daemon/host | socket só no `control-api`, imagens allowlisted e workers sem socket | Dev B | mitigado para ambiente local |
+| Worker acessa briefing ou banco | papéis deixam de ser reais | token com escopo, redes separadas e workspace sem docs | Dev A | coberto por `SEC-01` |
 | `TODO` | | | | |
 
 ---
 
 ## 10. Perguntas em aberto
 
-Mover para a seção correspondente assim que resolvida. Não deixar apodrecer aqui.
-
-Q1–Q4 têm recomendação de partida (não decidida) em [ENTENDIMENTO.md](ENTENDIMENTO.md) §6.
+Mover para a seção correspondente assim que resolvida. Não deixar apodrecer aqui. Stack, escopo
+live e persistência foram resolvidos nas ADRs 001–005.
 
 | # | Pergunta | Bloqueia | Dono | Prazo |
 |---|---|---|---|---|
-| Q1 | Stack do orquestrador — Python ou TS? | ADR-003, todo o `/squad` | `@quem` | `AAAA-MM-DD` |
-| Q2 | Quanto do app é scaffold humano? | ADR-001, cronograma | `@quem` | `AAAA-MM-DD` |
-| Q3 | Como tornar `R2` (sem treinamento) verificável? | contrato do QA | `@quem` | `AAAA-MM-DD` |
 | Q4 | Volume e realismo dos seeds | cenário 2 e 3 | `@quem` | `AAAA-MM-DD` |
-| Q5 | `TODO` | | | |
+| Q5 | Qual provedor/modelo LLM será usado na demo? | integração do gateway; não bloqueia scaffold | `@quem` | `AAAA-MM-DD` |
 
 ---
 
 ## 11. Divisão de trabalho
 
+Backlog, dependências e divisão para duas ou três pessoas estão detalhados em
+[ORQUESTRADOR.md §§14–15](ORQUESTRADOR.md#14-backlog-técnico).
+
 | Frente | Dono | Revisor |
 |---|---|---|
-| Orquestrador + event log | `@quem` | `@quem` |
-| PO Agent | `@quem` | `@quem` |
-| Dev Agent | `@quem` | `@quem` |
-| QA Agent + runner | `@quem` | `@quem` |
-| Plataforma do app + seeds | `@quem` | `@quem` |
-| Projeções e feed da demo | `@quem` | `@quem` |
+| API, PostgreSQL, event log e grafo | Dev A | Dev B |
+| Docker runtime, workers e runner | Dev B | Dev A |
+| Painel React responsivo | Dev B com 2 pessoas; Dev C com 3+ | Dev A |
+| Adaptação PO / Dev / QA | dividir após contrato `AG-01` | revisão cruzada |
+| Integração e demo | equipe | equipe |

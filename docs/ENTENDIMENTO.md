@@ -4,7 +4,7 @@
 > Recomendação registrada aqui só vale quando virar `DECIDIDO` na [ESPEC](ESPEC.md) §4.
 > **Última atualização:** 2026-08-22 · derivado de [DESCRICAO-TAREFA.md](DESCRICAO-TAREFA.md) e [ESPEC.md](ESPEC.md)
 > **Para que serve:** dar ao time um ponto de partida sobre o que está sendo avaliado, onde o
-> avaliador vai atacar, e em que ordem as ADRs abertas precisam cair.
+> avaliador vai atacar e como as decisões atuais respondem a esses ataques.
 
 ---
 
@@ -97,60 +97,41 @@ dez aprovações. Um QA que nunca reprova nada é indistinguível de um QA que s
 
 ---
 
-## 5. Ordem em que as decisões precisam cair
+## 5. Decisões fechadas e dependências restantes
 
-As cinco ADRs abertas não são independentes. Derivado das próprias marcações de bloqueio da
-ESPEC:
+As cinco ADRs estruturais foram fechadas em 2026-08-22 e estão detalhadas na
+[ESPEC §4](ESPEC.md) e em [ORQUESTRADOR.md](ORQUESTRADOR.md):
 
-```
-ADR-003 (stack)  ──────┬──> todo o /squad (ESPEC §3, §5)
-ADR-001 (escopo live) ─┴──> cronograma, quanto do app é scaffold
+| ADR | Decisão do MVP |
+|---|---|
+| ADR-001 | plataforma e scaffold humanos; artefatos dos agentes produzidos ao vivo |
+| ADR-002 | LangGraph determinístico com workers externos em containers efêmeros |
+| ADR-003 | backend Python/FastAPI, painel React/TypeScript e runtime Docker |
+| ADR-004 | QA cria testes; runner determinístico produz o veredito |
+| ADR-005 | PostgreSQL único, relacional + `JSONB`, sem MongoDB no MVP |
 
-ADR-002 (topologia) ───────> ESPEC §5.1 (hoje BLOQUEADO), §5.3
+O caminho crítico agora é de implementação: contratos → Compose/PostgreSQL → API/event log →
+fake worker distribuído → PO real → ciclo Dev/QA/runner → demo Rivexx.
 
-ADR-004 (veredito) ────────> contrato do QA (§6.3), formato do relatório
-
-ADR-005 (persistência) ────> rastreabilidade (§7.2, hoje BLOQUEADO)
-
-R1–R4 sem verificação ─────> contrato do QA — transversal a toda story
-```
-
-**Caminho crítico:** ADR-003 e ADR-001 primeiro, porque destravam a estrutura do repositório e o
-cronograma. ADR-002 e ADR-004 em seguida (definem o contrato do QA). ADR-005 pode ir em
-paralelo — é local ao app, não ao squad.
-
-**A dívida que não está numerada como ADR mas bloqueia igual:** a coluna "como se verifica" das
-restrições `R1`–`R4` na ESPEC §1 está inteira em `TODO`. A própria ESPEC avisa que *"restrição sem
-meio de verificação é decoração"*. Enquanto ela estiver vazia, o QA Agent não tem contra o que
-testar as restrições transversais — e o enunciado lista as quatro como restrições do cliente,
-não como sugestões. `R2` ("operável sem treinamento técnico") é a mais difícil de objetivar e já
-está registrada como Q3.
+**Dívidas que permanecem:** criar o contrato do QA, escolher o provedor/modelo da demo e definir
+volume/realismo dos seeds. `R1`–`R4` já possuem alvos verificáveis na ESPEC §1; o teste importante
+agora é conferir se o backlog real os transcreve nas stories corretas.
 
 ---
 
-## 6. Recomendações abertas ao time
+## 6. Efeito das decisões sobre os ataques da avaliação
 
-Insumo para discussão. Nenhuma destas é decisão; cada uma precisa virar ADR na ESPEC §4 para
-valer.
+| Ataque | Resposta arquitetural |
+|---|---|
+| A1 — LLM se autoaprova | somente a API aceita uma story a partir do resultado do runner |
+| A2 — briefing vaza | API filtra contexto e workspace do Dev/QA nasce sem os documentos do briefing |
+| A3 — cenários injetados | continua dependendo do teste de convergência do PO em três execuções |
+| A4 — replay | fluxo híbrido executa agentes e gera artefatos ao vivo sobre scaffold declarado |
+| A5 — teste não executa | runner isolado persiste comando, exit code, resultados e evidências |
+| A6 — comunicação simulada | toda saída passa pela API e gera evento com correlação e causalidade |
 
-**ADR-004 (veredito de aceite) — tratar como a mais urgente.** A própria ESPEC anota o motivo: se
-um LLM declara "aprovado", ele é o elo fraco e o ponto óbvio de ataque (A1). Recomendação:
-veredito determinístico do test runner; o QA Agent escreve o plano e os testes, e não julga o
-resultado. Isso torna o entregável 5 uma projeção de saída de runner, não de opinião de modelo —
-e é o que permite responder ao A5 sem hesitar.
-
-**ADR-002 (topologia).** Grafo de estados determinístico com LLM só dentro dos nós tende a ser
-mais defensável que chat livre: transições auditáveis, isolamento de contexto mecânico (A2) e
-sem risco de os agentes negociarem fora do protocolo. Chat livre parece mais impressionante em
-tese e é mais frágil sob inspeção.
-
-**ADR-001 (escopo live).** O híbrido — plataforma humana + features geradas ao vivo — é o único
-que sobrevive ao A4 sem ser frágil. Vale definir junto com ele *o que exatamente* é scaffold, e
-ter isso escrito antes da demo, para responder à pergunta "o que aí é seu e o que é do squad?".
-
-**Ensaio a agendar cedo, independente das ADRs:** o teste de convergência do PO (3 execuções, o
-PO chega nos 3 cenários?) já está previsto na ESPEC §6.1 sem dono. Ele valida ou derruba o A3, que
-é o momento mais forte ou o furo mais visível da demo. Descobrir isso tarde é caro.
+O teste de convergência do PO e uma reprovação real continuam sendo os dois ensaios de maior
+valor antes de polir a interface.
 
 ---
 
@@ -161,16 +142,22 @@ PO chega nos 3 cenários?) já está previsto na ESPEC §6.1 sem dono. Ele valid
 ├── README.md                    ← visão geral; instruções de execução ainda pendentes
 └── docs/
     ├── DESCRICAO-TAREFA.md      ← enunciado do hackathon (fonte, não editar)
-    ├── ESPEC.md                 ← esqueleto colaborativo; maioria em TODO / ABERTO
+    ├── ESPEC.md                 ← decisões e contratos compartilhados
     ├── ENTENDIMENTO.md          ← este documento; análise, não decisão
-    └── PO/
+    ├── ORQUESTRADOR.md          ← arquitetura implementável e backlog técnico
+    ├── FLOWCHART.txt            ← topologia e sequência em texto
+    ├── PO/
         ├── README.md            ← mapa e precedência dos artefatos do PO
         ├── persona.md           ← missão, autoridade e limites de contexto
         ├── SKILL.md             ← fluxo de decomposição de backlog
         └── acceptancecriteria.md ← critérios binários e reproduzíveis
+    └── dev/
+        ├── persona.md           ← missão, autoridade e limites do Dev
+        ├── SKILL.md             ← implementação e remediação
+        ├── task-contract.md     ← contrato de tasks, ADR e entrega
+        └── qa-remediation.md    ← protocolo após reprovação
 ```
 
-Ainda não há aplicação nem orquestrador e nenhuma das cinco ADRs foi decidida. O PO é o único
-agente com definição em rascunho avançado; Dev e QA seguem em `TODO`. A estrutura de execução
-da ESPEC §3 continua proposta (`ABERTO`) e depende de ADR-003 para saber se será monorepo TS ou
-Python + app separado.
+Ainda não há aplicação nem orquestrador implementados. A arquitetura e as cinco ADRs estão
+fechadas; PO e Dev têm definição em rascunho avançado, enquanto QA segue em `TODO`. O próximo
+incremento deve ser a fatia distribuída mínima com fake worker descrita em ORQUESTRADOR §13.
