@@ -22,8 +22,7 @@ diretório `/tests/`:
 
 1. `tests/docker-compose.yml`: estrutura de contêineres isolando Backend
    (Python) e Frontend (React), somente se essa for a stack efetivamente
-   aprovada; não presumir essa arquitetura enquanto a ADR correspondente estiver
-   aberta.
+   aprovada na ESPEC; manter esses caminhos alinhados à estrutura decidida do repositório.
 2. `tests/test_suite.py`: esqueleto de testes automatizados que mapeia os
    critérios da story. Os três cenários-base Rivexx — Registro Ágil, Causa Raiz
    e Rastreabilidade — servem como referência em
@@ -55,7 +54,7 @@ falhas preexistentes fora do escopo como achados separados.
 **Identificação de falhas:** mapear cada log de erro diretamente ao critério de
 aceite violado. Para cada finding, informar `story_id`, `story_hash`, revisão de
 implementação, ID do critério, severidade, esperado, observado, reprodução e
-evidência. Emitir `QA_REJECTED` no formato consumido por
+evidência. Emitir `STORY_REJECTED` no formato consumido por
 [`../dev/qa-remediation.md`](../dev/qa-remediation.md).
 
 **Controle de tentativas:** respeitar o limite configurado pelo orquestrador

@@ -73,10 +73,11 @@ operacionais ficam próximos de cada agente e devem implementar esse contrato, s
 | [`docs/dev/SKILL.md`](dev/SKILL.md) | implementação de story e entrada de remediação | rascunho avançado |
 | [`docs/dev/task-contract.md`](dev/task-contract.md) | tasks, ADR e pacote de entrega | rascunho avançado |
 | [`docs/dev/qa-remediation.md`](dev/qa-remediation.md) | protocolo de correção após reprovação | rascunho avançado |
-| QA Agent | persona, instruções e contrato operacional | `TODO` |
+| [`docs/QA/persona.md`](QA/persona.md) | missão, autoridade e limites de contexto do QA | rascunho avançado |
+| [`docs/QA/SKILL.md`](QA/SKILL.md) | planejamento, execução e feedback de validação | rascunho avançado |
+| [`docs/QA/acceptance.md`](QA/acceptance.md) | referência inicial dos três cenários Rivexx | rascunho avançado |
 
-O [mapa dos artefatos do PO](PO/README.md) explicita a precedência entre esses documentos e a
-ESPEC.
+Os artefatos do PO implementam o contrato desta ESPEC; em caso de divergência, a ESPEC prevalece.
 
 `docs/PO` e `docs/dev` são as fontes de design dos agentes. O runtime deverá carregar esses
 artefatos diretamente ou empacotá-los de forma automatizada; não deve existir uma segunda cópia
@@ -264,8 +265,8 @@ Matriz do que cada agente pode ler. **Preencher em conjunto — é aqui que os p
 
 ### 6.1 PO Agent — `RASCUNHO AVANÇADO · ARTEFATOS CRIADOS`
 
-**Artefatos operacionais:** [mapa](PO/README.md) · [persona](PO/persona.md) ·
-[decomposição de backlog](PO/SKILL.md) · [critérios de aceitação](PO/acceptancecriteria.md).
+**Artefatos operacionais:** [persona](PO/persona.md) · [decomposição de backlog](PO/SKILL.md) ·
+[critérios de aceitação](PO/acceptancecriteria.md) · [contrato de saída](PO/outputcontract.md).
 Esta seção é o contrato compartilhado; os artefatos operacionais detalham como o PO o cumpre.
 
 **Contrato em uma frase:** traduz prosa de cliente em obrigações verificáveis. Único nó que lê o briefing. Único que cria e prioriza trabalho. Nunca decide *como*. Nunca declara pronto.
@@ -380,19 +381,25 @@ consecutivas do mesmo finding sem evidência nova, emite `NEEDS_HUMAN`.
 
 ---
 
-### 6.3 QA Agent — `TODO`
+### 6.3 QA Agent — `RASCUNHO AVANÇADO · ARTEFATOS CRIADOS`
 
-**Contrato em uma frase:** `TODO`
+**Artefatos operacionais:** [persona](QA/persona.md) · [ciclo de validação](QA/SKILL.md) ·
+[referência de aceite](QA/acceptance.md).
 
-**Funções:** `TODO`
+**Contrato em uma frase:** converte critérios congelados em casos executáveis, coleta evidências e
+devolve findings técnicos sem ler briefing, alterar requisito ou declarar aprovação por opinião.
 
-**Limites duros:** `TODO`
-> ADR-004 decidiu: o QA escreve o plano e os testes, enquanto o runner executa e fornece o
-> resultado determinístico. O contrato do QA deve implementar essa separação.
+**Funções:** planejar antecipadamente, materializar testes, garantir ambiente reproduzível, mapear
+cada resultado ao critério literal e produzir feedback reproduzível ao Dev.
 
-**Schema de saída (plano de teste):** `TODO`
+**Limites duros:** não lê briefing; não reescreve critério; não aprova por julgamento LLM; não
+oculta falha ou verificação impedida. ADR-004 reserva o resultado final ao runner.
 
-**Política de reprovação:** `TODO` — teto de iterações antes de `NEEDS_HUMAN`.
+**Schema de saída:** `TEST_PLAN_CREATED`, `TEST_EXECUTED`, `STORY_REJECTED` e `NEEDS_HUMAN`
+estruturados conforme o event log; detalhamento final entra na implementação de `AG-QA-01`.
+
+**Política de reprovação:** máximo de três reprovações consecutivas do mesmo finding sem nova
+causa ou evidência; depois disso, `NEEDS_HUMAN` com `RETRY_LIMIT_REACHED`.
 
 ---
 

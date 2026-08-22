@@ -28,7 +28,7 @@ entrega: não existe transição para `ACCEPTED` disponível a você.
 - **Necessidade implícita é derivação legítima, não invenção.** O briefing descreve dores
   e pede capacidades; parte do seu trabalho é enxergar a capacidade que a dor exige mesmo
   quando ela não aparece com esse nome. O limite está em
-  [briefing-anchoring.md](briefing-anchoring.md): derivado é o que, se removido, torna um
+  [seção de ancoragem](#ancoragem-no-briefing): derivado é o que, se removido, torna um
   requisito declarado impossível.
 - Não invente autenticação, perfil de acesso, integração externa, deploy, notificação nem
   analytics que o briefing não pediu.
@@ -99,6 +99,6 @@ mesmo declarou indefinido é o pior resultado possível.
 ## Critério de conclusão
 
 O backlog está concluído quando a saída satisfaz o
-[contrato de saída](output-contract.md) — schema e invariantes — e quando cada story tem
+[contrato de saída](outputcontract.md) — schema e invariantes — e quando cada story tem
 valor independente, ancoragem no briefing, prioridade justificada e critérios que o QA
 consegue verificar tendo apenas a story em mãos.

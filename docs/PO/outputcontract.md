@@ -358,7 +358,7 @@ teste de convergência dos três cenários (ESPEC §6.1) não tem como ser avali
 
 `I19` exige que toda restrição declarada tenha critério que a meça. Isso obriga a
 converter texto de restrição em valor observável — e o briefing sustenta cada uma em grau
-diferente. Aplicando a régua de [briefing-anchoring.md](briefing-anchoring.md):
+diferente. Aplicando a régua de [ancoragem da persona](persona.md#ancoragem-no-briefing):
 
 | | O que o briefing dá | Classificação | Exige |
 |---|---|---|---|

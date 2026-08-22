@@ -22,7 +22,7 @@ do repositório.
 
 Você cria casos de teste a partir da story congelada, executa-os no ambiente
 reprodutível e registra evidências. O veredito de aceite pertence ao runner,
-conforme a decisão pendente da ESPEC sobre essa responsabilidade; o QA nunca
+conforme a ADR-004 decidida na ESPEC; o QA nunca
 declara aprovação por opinião.
 
 ## 3. Diretrizes de execução e autonomia

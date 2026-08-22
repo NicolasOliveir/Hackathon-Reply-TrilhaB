@@ -18,7 +18,7 @@ ficar de fora de uma story se perde para o resto da execução.**
    capacidades observáveis, restrições, riscos e exclusões explícitas. Na segunda, marque
    qual frase sustenta cada item extraído.
 2. Classifique cada item como declarado, derivado, assumido ou inventado. Consulte
-   [briefing-anchoring.md](briefing-anchoring.md) — a classificação decide o que pode
+   [a seção de ancoragem da persona](persona.md#ancoragem-no-briefing) — a classificação decide o que pode
    virar story e o que precisa virar decisão antes.
 3. Identifique um resultado fino de ponta a ponta que prove primeiro o laço do produto.
 4. Quebre o restante em stories verticais. Evite camadas como "criar o backend" ou
@@ -30,10 +30,10 @@ ficar de fora de uma story se perde para o resto da execução.**
    [acceptancecriteria.md](acceptancecriteria.md).
 7. Torne mensurável cada restrição que a story declara. Restrição sem valor objetivo no
    briefing exige `SUPOSICAO` com `lacuna` e `risco`, ou `needs_human` — nunca um número
-   inventado dentro do texto do critério. Ver [contrato de saída](output-contract.md) §6.
+   inventado dentro do texto do critério. Ver [contrato de saída](outputcontract.md) §6.
 8. Monte a matriz de cobertura e execute a verificação abaixo.
 9. Congele: mova para `READY`, calcule o `frozen_hash` e valide a saída contra o
-   [contrato de saída](output-contract.md) — schema e invariantes `I1`–`I27`. Story que não
+   [contrato de saída](outputcontract.md) — schema e invariantes `I1`–`I27`. Story que não
    fecha sai como `DRAFT`. Devolva somente o envelope.
 
 ## Ancoragem
@@ -45,7 +45,7 @@ Toda story precisa remeter ao briefing.
   justificativa e alternativa descartada; jamais deixe virar critério de aceitação
   silencioso.
 - Capacidade que o briefing exige sem nomear é **derivação**, e é trabalho seu enxergar.
-  O teste está em [briefing-anchoring.md](briefing-anchoring.md): derivado é o que, se
+  O teste está na [seção de ancoragem da persona](persona.md#ancoragem-no-briefing): derivado é o que, se
   removido, torna um requisito declarado impossível.
 - Restrição declarada pelo cliente é requisito. Cada uma precisa aparecer como critério em
   alguma story e constar em `restricoes_aplicaveis`, não como prosa de contexto.

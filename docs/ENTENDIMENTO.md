@@ -54,7 +54,7 @@ escrito à mão são indistinguíveis de teatro, e é justamente isso que o enun
 O enunciado define os três papéis com fronteiras que são o coração da avaliação. Papel sem
 fronteira dura vira "três prompts com nomes diferentes".
 
-O PO já possui [persona e instruções operacionais](PO/README.md). Elas detalham a decomposição
+O PO já possui [persona](PO/persona.md) e [instruções operacionais](PO/SKILL.md). Elas detalham a decomposição
 do briefing, mas permanecem subordinadas ao contrato compartilhado da ESPEC §6.1.
 
 | Agente | É o único que | Nunca |
@@ -147,9 +147,9 @@ valor antes de polir a interface.
     ├── ORQUESTRADOR.md          ← arquitetura implementável e backlog técnico
     ├── FLOWCHART.txt            ← topologia e sequência em texto
     ├── PO/
-        ├── README.md            ← mapa e precedência dos artefatos do PO
         ├── persona.md           ← missão, autoridade e limites de contexto
         ├── SKILL.md             ← fluxo de decomposição de backlog
+        ├── outputcontract.md    ← envelope e invariantes do backlog
         └── acceptancecriteria.md ← critérios binários e reproduzíveis
     └── dev/
         ├── persona.md           ← missão, autoridade e limites do Dev
@@ -159,5 +159,5 @@ valor antes de polir a interface.
 ```
 
 Ainda não há aplicação nem orquestrador implementados. A arquitetura e as cinco ADRs estão
-fechadas; PO e Dev têm definição em rascunho avançado, enquanto QA segue em `TODO`. O próximo
+fechadas; PO, Dev e QA têm definição em rascunho avançado. O próximo
 incremento deve ser a fatia distribuída mínima com fake worker descrita em ORQUESTRADOR §13.

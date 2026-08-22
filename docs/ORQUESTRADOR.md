@@ -380,6 +380,10 @@ maior risco arquitetural sem depender da qualidade do modelo.
 
 ## 14. Backlog técnico
 
+O planejamento abaixo define o backlog arquitetural. Reservas, responsáveis e estado da primeira
+iteração são controlados exclusivamente no [quadro compartilhado](../TASKS.md) publicado em
+`origin/main`.
+
 | ID | Entrega | Dependências | Critério de conclusão | Faixa |
 |---|---|---|---|---|
 | `ARC-01` | contratos de estados, eventos e outputs dos papéis | — | schemas versionados e exemplos válidos/inválidos testados | comum |

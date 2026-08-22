@@ -10,12 +10,14 @@ O humano entra uma vez, com o briefing. O squad faz o resto.
 
 | Documento | O que é |
 |---|---|
+| [AGENTS.md](AGENTS.md) | Regras obrigatórias para reserva, sincronização e entrega paralela |
+| [TASKS.md](TASKS.md) | Quadro oficial de tarefas e responsáveis da iteração atual |
 | [docs/DESCRICAO-TAREFA.md](docs/DESCRICAO-TAREFA.md) | Enunciado do hackathon — fonte, não editar |
 | [docs/ESPEC.md](docs/ESPEC.md) | Spec colaborativa: ADRs, contratos de agente, cenários da demo |
 | [docs/ENTENDIMENTO.md](docs/ENTENDIMENTO.md) | Leitura do enunciado, ataques prováveis e respostas arquiteturais |
 | [docs/ORQUESTRADOR.md](docs/ORQUESTRADOR.md) | Arquitetura implementável, protocolo e backlog técnico do orquestrador |
 | [docs/FLOWCHART.txt](docs/FLOWCHART.txt) | Topologia e sequência principal em formato texto |
-| [docs/PO/README.md](docs/PO/README.md) | Mapa dos artefatos que definem o comportamento do PO Agent |
+| [docs/PO/SKILL.md](docs/PO/SKILL.md) | Decomposição de backlog e contrato operacional do PO Agent |
 
 ## Como rodar
 
@@ -24,6 +26,6 @@ O humano entra uma vez, com o briefing. O squad faz o resto.
 ## Estado
 
 Arquitetura do MVP definida; ainda não há aplicação nem orquestrador implementados. As cinco ADRs
-estruturais estão fechadas, PO e Dev têm contratos em rascunho avançado e o QA ainda precisa ser
-especificado. A implementação começa pela fatia distribuída mínima do
+estruturais estão fechadas e PO, Dev e QA têm contratos em rascunho avançado. A implementação
+começa pela fatia distribuída mínima do
 [plano do orquestrador](docs/ORQUESTRADOR.md) §13.

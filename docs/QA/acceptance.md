@@ -3,9 +3,8 @@
 Este documento é uma referência para o planejamento inicial de testes. Ele não
 substitui os critérios canônicos emitidos pelo PO: o QA só pode executar e
 reportar os critérios presentes na story congelada, literalmente e na ordem
-recebida. Metas ainda abertas na ESPEC — como viewport, tempo máximo e a
-definição objetiva de usabilidade — devem ser resolvidas pelo fluxo de produto
-antes de virarem vereditos de QA.
+recebida. Os alvos objetivos definidos na ESPEC devem ser transcritos pelo PO
+nos critérios aplicáveis antes de virarem vereditos de QA.
 
 ## Cenário 1: Registro Ágil de Não Conformidades
 
