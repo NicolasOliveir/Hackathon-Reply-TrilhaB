@@ -169,6 +169,9 @@ RW; QA recebe o código em `/workspace` RO e produz testes em `/tests` RW.
 Antes de montar, a árvore é entregue ao UID `10001` usado nas imagens. O adapter
 Docker traduz o path interno do volume do control-api para o `Source` visto pelo
 daemon; um path que não pertence aos volumes do control-api é recusado.
+Por isso `infra/compose.yaml` usa um bind em `.rivexx-data/workspaces`: volumes
+nomeados não permitem reutilizar seus subdiretórios como binds no Docker
+Desktop/daemon remoto. `WORKSPACE_HOST_ROOT` pode apontar outro diretório host.
 
 `ToolExecutor` recebe `argv`, cwd virtual, perfil e timeout. Ele executa sem
 shell, traduz somente `/workspace` e `/tests`, aplica allowlist de executáveis e
