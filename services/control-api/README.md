@@ -141,6 +141,7 @@ despacho inteiro sem daemon.
 |---|---|---|
 | `RUNTIME_BACKEND` | `docker` | `docker` ou `fake` |
 | `FAKE_WORKER_IMAGE` | `rivexx/fake-worker:local` | imagem do worker |
+| `PO_WORKER_IMAGE` | `reply/po-worker:local` | imagem dedicada, non-root e sem workspace do PO |
 | `RUNTIME_IMAGE_ALLOWLIST` | — | imagens extras permitidas |
 | `AGENT_NETWORK` | `rivexx-squad_agent_net` | rede interna dos agentes |
 | `INTERNAL_BASE_URL` | `http://control-api:8000` | URL que o worker recebe |

@@ -10,6 +10,9 @@ from typing import Any
 from urllib.request import Request, urlopen
 from uuid import UUID
 
+from jsonschema import Draft202012Validator
+from referencing import Registry, Resource
+
 
 CONTRACT_VERSION = "1.0.0"
 MAX_REPAIRS = 2
@@ -100,8 +103,8 @@ def build_prompt(briefing: str, run_id: str, briefing_hash: str) -> tuple[str, s
     )
     prompt = (
         f"run_id: {run_id}\nbriefing_hash: {briefing_hash}\n\n"
-        "Produza backlog priorizado. IDs de stories devem ser US-001 em diante e critérios "
-        "AC-1 em diante por story. Cada item do briefing deve aparecer em coverage; dependências "
+        "Produza backlog priorizado. IDs de stories devem ser STORY-001 em diante e critérios "
+        "AC-001 em diante por story. Cada item do briefing deve aparecer em coverage; dependências "
         "devem ser acíclicas. Marque ready=false se houver bloqueio humano.\n\nBRIEFING:\n"
         + briefing
     )
@@ -169,6 +172,16 @@ def semantic_errors(output: dict, *, run_id: str, briefing_hash: str) -> list[st
     return errors
 
 
+def schema_errors(output: dict, schema: dict, schema_dir: Path) -> list[str]:
+    registry = Registry()
+    common_path = schema_dir / "common.schema.json"
+    if common_path.exists():
+        common = json.loads(common_path.read_text(encoding="utf-8"))
+        registry = registry.with_resource(common["$id"], Resource.from_contents(common))
+    errors = sorted(Draft202012Validator(schema, registry=registry).iter_errors(output), key=lambda item: list(item.absolute_path))
+    return ["/" + "/".join(str(part) for part in error.absolute_path) + f": {error.message}" for error in errors]
+
+
 def parse_model_output(response: dict) -> dict:
     parsed = response.get("parsed")
     if isinstance(parsed, dict):
@@ -214,7 +227,9 @@ def execute(settings: Settings, api: Api | None = None) -> dict:
         }
         try:
             output = parse_model_output(api.invoke(request))
-            errors = semantic_errors(output, run_id=settings.run_id, briefing_hash=briefing_hash)
+            errors = schema_errors(output, schema, settings.schema_path.parent)
+            if not errors:
+                errors = semantic_errors(output, run_id=settings.run_id, briefing_hash=briefing_hash)
         except (ValueError, json.JSONDecodeError) as exc:
             errors = [f"/: JSON inválido: {exc}"]
         if not errors:

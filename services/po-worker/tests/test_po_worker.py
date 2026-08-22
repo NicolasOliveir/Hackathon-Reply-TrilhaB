@@ -18,18 +18,18 @@ def valid_output(run_id: str, briefing_hash: str) -> dict:
     return {
         "contract_version": "1.0.0", "run_id": run_id,
         "briefing_hash": briefing_hash, "product_goal": "Gerenciar agenda",
-        "stories": [{"story_id": "US-001", "title": "Criar evento",
+        "stories": [{"story_id": "STORY-001", "title": "Criar evento",
           "narrative": "Como usuário quero criar um evento para organizar o dia",
           "priority": "MUST", "depends_on": [], "acceptance_criteria": [
-            {"criterion_id": "AC-1", "order": 1, "description": "Evento aparece na agenda após salvar", "verification": "Consultar agenda"}], "ready": True}],
+            {"criterion_id": "AC-001", "order": 1, "description": "Evento aparece na agenda após salvar", "verification": "Consultar agenda"}], "ready": True}],
         "constraints": [], "assumptions": [], "out_of_scope": [],
-        "coverage": [{"briefing_item": "Criar agenda", "story_ids": ["US-001"]}],
+        "coverage": [{"briefing_item": "Criar agenda", "story_ids": ["STORY-001"]}],
         "decisions": [], "needs_human": []}
 
 
 def test_semantic_validation_rejects_cycle_and_orphan():
     run_id = str(uuid4()); output = valid_output(run_id, "sha256:" + "a" * 64)
-    output["stories"][0]["depends_on"] = ["US-001"]
+    output["stories"][0]["depends_on"] = ["STORY-001"]
     output["coverage"] = [{"briefing_item": "x", "story_ids": ["US-999"]}]
     errors = po.semantic_errors(output, run_id=run_id, briefing_hash=output["briefing_hash"])
     assert any("auto-dependência" in error for error in errors)
