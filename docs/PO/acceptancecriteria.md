@@ -1,53 +1,83 @@
 # Critérios de Aceitação
 
-Os critérios de aceitação são o único contrato que o agente de QA tem. Ele avalia
-cada critério exatamente uma vez, na ordem em que foi escrito, e precisa anexar
-evidência concreta a cada veredito. Critério que ele não consegue observar trava a
-validação e reprova a story por um defeito do backlog, não do código.
+Os critérios de aceitação são o único contrato que o agente de QA tem. Ele avalia cada
+critério exatamente uma vez, na ordem em que foi escrito, e precisa anexar evidência
+concreta a cada veredito. Critério que ele não consegue observar trava a validação e
+reprova a story por um defeito do backlog, não do código.
 
 ## Forma
 
-Escreva cada critério como um único fato observável com resultado binário. Duas
-formas funcionam; use a que for mais curta para o caso.
+Escreva cada critério como um único fato observável com resultado binário, em uma linha.
+Duas formas funcionam; use a que for mais curta para o caso.
 
 **Dado / Quando / Então** — para comportamento que depende de estado:
 
-    Dada uma ocorrência com status ABERTA, quando o usuário muda o status para
-    RESOLVIDA sem preencher a ação corretiva, então o formulário exibe o erro
-    "Ação corretiva obrigatória" e o status permanece ABERTA.
+    Dada uma ocorrência com status ABERTA, quando o usuário muda o status para RESOLVIDA sem preencher a ação corretiva, então o formulário exibe o erro "Ação corretiva obrigatória" e o status permanece ABERTA.
 
 **Afirmação direta** — para fatos estruturais ou de apresentação:
 
-    O formulário de registro exibe os campos data, responsável, turno e
-    equipamento, e nenhum deles aceita envio vazio.
+    O formulário de registro exibe os campos data, responsável, turno e equipamento, e nenhum deles aceita envio vazio.
 
 ## Regras
 
-- Nomeie o campo, o valor, o estado ou a mensagem. Não "a validação funciona", mas
-  qual validação, em qual campo, com qual mensagem.
+- Nomeie o campo, o valor, o estado ou a mensagem. Não "a validação funciona", mas qual
+  validação, em qual campo, com qual mensagem.
 - Uma afirmação por critério. Dois comportamentos unidos por "e também" viram dois
-  critérios, porque o QA precisa julgar cada um como passou ou falhou por conta
-  própria.
-- Prefira o que aparece na tela ou no dado armazenado a chamadas internas de
-  função.
-- Declare o caso negativo quando ele muda a correção: entrada rejeitada, lista
-  vazia, chave duplicada, campo obrigatório ausente.
-- Não invente quantidade que o briefing não deu. Se ele diz "rápido", ou omita o
-  critério, ou registre o alvo escolhido como suposição.
-- Não cite componente, arquivo, rota ou biblioteca dentro de um critério. Descreva
-  o que o usuário observa; o Developer escolhe como.
+  critérios, porque o QA precisa julgar cada um como passou ou falhou por conta própria.
+- Prefira o que aparece na tela ou no dado armazenado a chamadas internas de função.
+- Declare o caso negativo quando ele muda a correção: entrada rejeitada, lista vazia,
+  chave duplicada, campo obrigatório ausente.
+- Não invente quantidade que o briefing não deu. Se ele diz "rápido", ou omita o critério,
+  ou registre o alvo escolhido como decisão `SUPOSICAO`.
+- Não cite componente, arquivo, rota ou biblioteca dentro de um critério. Descreva o que o
+  usuário observa; o Dev escolhe como.
+
+## `verificavel_por`
+
+Todo critério declara por onde a verificação acontece. O valor orienta o QA sobre o tipo
+de evidência que ele precisa produzir.
+
+| Valor | Quando usar | Evidência que o QA produz |
+|---|---|---|
+| `ui` | O fato é observável na interface — campo, mensagem, layout, estado visual | Interação com a tela renderizada |
+| `dados` | O fato é sobre o que ficou persistido — sobrevive a recarregamento, não é editável, foi derivado corretamente | Leitura do estado armazenado |
+| `api` | O fato é sobre contrato de serviço — resposta, código de status, forma do retorno | Chamada direta ao endpoint |
+
+Critério que precisaria de dois valores está testando duas coisas — divida. Na dúvida
+entre `ui` e `dados`, pergunte o que falharia se a tela estivesse certa e o dado errado:
+se isso importa, é `dados`.
+
+## `verifica_restricao`
+
+Quando o critério existe para medir uma das restrições transversais, declare qual:
+`R1`, `R2`, `R3` ou `R4`. Critério que não mede restrição nenhuma leva `null`.
+
+Não é rótulo decorativo: é o que permite verificar por máquina que uma story declarando
+`restricoes_aplicaveis: ["R1"]` realmente tem um critério sobre viewport, em vez de só
+alegar que respeita a restrição.
+
+Um critério mede **uma** restrição. Se um critério parece medir duas, ele está testando
+duas coisas — divida.
+
+**Antes de escrever o critério, o valor precisa existir.** "Responsivo" não é mensurável;
+"320 px sem rolagem horizontal" é. Se o briefing não deu o número, ele vem de uma
+`SUPOSICAO` registrada — nunca direto para dentro do texto do critério. Um número sem
+decisão que o autorize é invenção que nenhuma invariante pega, porque está escondido em
+texto livre.
 
 ## Mantenha cada critério reproduzível ao pé da letra
 
-O agente de QA precisa reproduzir cada critério **literalmente** no relatório, e o
-orquestrador rejeita o relatório quando uma string não bate caractere por
-caractere. Critério longo ou multilinha convida à paráfrase e transforma uma
-validação boa em execução falhada.
+O texto do critério é a **representação canônica congelada** da story. O agente de QA
+precisa reproduzi-lo **literalmente** no relatório, e o orquestrador rejeita quando a
+string não bate caractere por caractere. Critério longo ou multilinha convida à paráfrase
+e transforma uma validação boa em execução falhada.
 
-- Mantenha o critério em uma frase, em uma linha.
+- Mantenha o critério em uma frase, em uma linha, sem quebra.
 - Evite aspas aninhadas além da única mensagem que está sendo afirmada.
-- Evite marcador de lista, quebra de linha e espaço sobrando dentro da string.
+- Evite marcador de lista e espaço sobrando dentro da string.
 - Se um critério não cabe em uma frase, ele está testando duas coisas — divida.
+- Depois de a story ir para `READY`, essa string não muda mais. Alterá-la invalida o
+  relatório do QA.
 
 ## Não verificáveis — reescreva estes
 
@@ -65,17 +95,16 @@ validação boa em execução falhada.
 - **Campo obrigatório** — o campo, o gatilho, a mensagem exata e que a ação não se
   completa.
 - **Chave única** — o que acontece na segunda tentativa com o mesmo valor.
-- **Filtro ou busca** — a entrada, o subconjunto esperado e o caso de resultado
-  vazio.
+- **Filtro ou busca** — a entrada, o subconjunto esperado e o caso de resultado vazio.
 - **Persistência** — a ação, o recarregamento e o que precisa sobreviver a ele.
-- **Evidência de auditoria** — quais campos são registrados e que não podem ser
-  editados depois.
+- **Evidência de auditoria** — quais campos são registrados e que não podem ser editados
+  depois.
 - **Indicador derivado** — as linhas de entrada e o número resultante.
-- **Transição de estado** — o estado de origem, a condição, o estado de destino e o
-  que bloqueia a transição.
+- **Transição de estado** — o estado de origem, a condição, o estado de destino e o que
+  bloqueia a transição.
 
 ## Ordenação
 
-Escreva os critérios na ordem em que uma pessoa os exercitaria: criar, depois ler,
-depois editar, depois borda. O QA reporta os vereditos nessa mesma ordem, então uma
-sequência coerente torna o relatório de reprovação legível para o Developer.
+Escreva os critérios na ordem em que uma pessoa os exercitaria: criar, depois ler, depois
+editar, depois borda. O QA reporta os vereditos nessa mesma ordem, então uma sequência
+coerente torna o relatório de reprovação legível para o Dev.
