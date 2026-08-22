@@ -4,3 +4,5 @@
 @media(min-width:480px){.briefing-page{width:min(100%,720px);margin-inline:auto}.field-support{flex-direction:row;align-items:center;justify-content:space-between}}
 @media(min-width:768px){.briefing-page{gap:30px;padding-top:48px}.briefing-card{padding:24px}.prompt-guide ul{grid-template-columns:repeat(3,minmax(0,1fr))}.prompt-guide li{align-items:start}}
 @media(min-width:1024px){.shell{width:min(calc(100% - 48px),1080px)}.briefing-page{width:100%;grid-template-columns:minmax(0,.92fr) minmax(440px,1.08fr);align-items:center;gap:64px;padding-top:64px}.prompt-guide ul{grid-template-columns:1fr}.prompt-guide li{align-items:center}}
+
+@media(max-width:479px){.timeline .section-heading{align-items:flex-start;flex-direction:column}.timeline .section-heading .actions{width:100%}}
