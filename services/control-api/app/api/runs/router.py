@@ -12,13 +12,15 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from ...config import CONTRACT_VERSION, Settings, get_settings
 from ...contracts.v1.create_run_request_schema import CreateRunRequest
 from ...contracts.v1.run_response_schema import Links, RunResponse
 from ...db import session_dependency, transaction
 from ...persistence import idempotency
-from ...persistence.models import Run
+from ...persistence.models import AgentTask, Run
+from ...persistence.event_store import EventDraft, EventStore, utc_now
 from ...persistence.runs import CreateRunCommand, RunService
 from ...persistence.state_machine import load_state_machine
 
@@ -136,3 +138,38 @@ async def get_run(
             detail=f"Execução {run_id} não encontrada.",
         )
     return _serialize(_to_response(run, settings))
+
+
+@router.post("/{run_id}/cancel", status_code=status.HTTP_200_OK, response_model=None)
+async def cancel_run(
+    run_id: uuid.UUID,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> dict[str, Any]:
+    """Interrompe logicamente uma execução e revoga sua tarefa ativa."""
+    async with transaction() as session:
+        run = await session.get(Run, run_id, with_for_update=True)
+        if run is None:
+            raise HTTPException(status_code=404, detail="Criação não encontrada.")
+        if run.state in {"COMPLETED", "FAILED", "CANCELED"}:
+            return _serialize(_to_response(run, settings))
+
+        machine = load_state_machine(settings.state_machine_path)
+        if not machine.accepts(run.state, "RUN_CANCELED"):
+            raise HTTPException(status_code=409, detail="Esta criação não pode mais ser cancelada.")
+
+        tasks = (await session.execute(select(AgentTask).where(
+            AgentTask.run_id == run_id,
+            AgentTask.state.in_(["WAITING", "PENDING", "RUNNING"]),
+        ))).scalars().all()
+        for task in tasks:
+            task.state = "CANCELED"
+            task.token_hash = None
+            task.updated_at = utc_now()
+
+        await EventStore(session, machine).append(run, [EventDraft(
+            type="RUN_CANCELED",
+            actor="system",
+            payload={"reason": "Cancelado pelo usuário"},
+            drives_transition=True,
+        )])
+        return _serialize(_to_response(run, settings))

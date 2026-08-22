@@ -10,3 +10,6 @@
 .story-grid summary { min-height: 40px; padding: 8px 0; cursor: pointer; }
 .story-grid ul { margin: 4px 0 0; padding-left: 18px; color: #aebac6; }
 .story-grid ul li { margin: 6px 0; }
+.run-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.run-actions button { flex: 1 1 180px; }
+.cancel-action { background: transparent; border: 1px solid #75444b; color: #ffb3ad; }

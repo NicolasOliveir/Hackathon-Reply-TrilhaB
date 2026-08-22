@@ -23,6 +23,7 @@ export type ControlApi = {
   ) => Promise<RunResponse>;
   getRun: (url: string, signal?: AbortSignal) => Promise<RunResponse>;
   getBacklog: (runId: string, signal?: AbortSignal) => Promise<BacklogResponse>;
+  cancelRun: (runId: string, signal?: AbortSignal) => Promise<RunResponse>;
   followRunEvents: (options: FollowRunEventsOptions) => Promise<void>;
 };
 
@@ -194,6 +195,10 @@ export const controlApi: ControlApi = {
     const response = await fetch(apiUrl(`/api/v1/runs/${runId}/backlog`), { signal });
     if (!response.ok) throw await responseError(response);
     return (await response.json()) as BacklogResponse;
+  },
+
+  cancelRun(runId, signal) {
+    return requestRun(`/api/v1/runs/${runId}/cancel`, { method: 'POST', signal });
   },
 
   async followRunEvents(options) {

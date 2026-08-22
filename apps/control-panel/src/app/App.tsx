@@ -155,6 +155,22 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
     setPhase('idle');
   };
 
+  const cancel = async () => {
+    if (!run || !window.confirm('Deseja interromper a criação atual?')) return;
+    setError('');
+    try {
+      setRun(await client.cancelRun(run.run_id));
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Não foi possível interromper agora.');
+    }
+  };
+
+  const rerun = () => {
+    if (!lastBriefing.current) return;
+    idempotencyKey.current = '';
+    void submit(lastBriefing.current);
+  };
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -193,6 +209,11 @@ export function App({ client = controlApi }: { client?: ControlApi }) {
       ) : (
         <>
           <RunSummary phase={phase} run={run} events={events} />
+          <div className="run-actions" aria-label="Ações da criação">
+            <button className="secondary" onClick={rerun}>Executar novamente</button>
+            {!['COMPLETED', 'FAILED', 'CANCELED'].includes(run.state) && <button className="cancel-action" onClick={() => void cancel()}>Cancelar criação</button>}
+          </div>
+          {error && <p className="error-panel" role="alert">{error}</p>}
           <StoryList backlog={backlog} />
           {phase === 'error' && (
             <button
