@@ -159,3 +159,19 @@ Terceira onda:
 - AWS, MongoDB, Redis ou broker de mensagens.
 
 Esses itens entram somente depois que `I1-007` provar a base distribuída.
+
+### I1-008 — Chamadas reais a provedor LLM
+
+Entrega:
+
+- porta de provedor unica com implementacoes `anthropic` (SDK), `codex` (CLI) e `echo`
+  (deterministico, sem rede);
+- endpoint `POST /internal/v1/tasks/{task_id}/model-invocations` protegido por escopo
+  `model:invoke`, concedido por papel;
+- tabela `model_invocations` com provedor, modelo, tokens, latencia, motivo da rota e erro,
+  sem persistir o prompt em claro;
+- agregado de uso no `meta` do evento de conclusao da tarefa;
+- roteamento de modelo e esforco por papel, sobrescrevivel por `MODEL_ROUTES`.
+
+Concluida quando um agente obtem resposta real do provedor sem que a credencial saia do
+`control-api`, o uso aparece no evento e o papel sem escopo recebe 403.

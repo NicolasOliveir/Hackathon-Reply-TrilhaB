@@ -19,11 +19,6 @@ from .event_store import EventDraft, EventStore, sha256_of, utc_now
 from .models import AgentTask, Run
 from .state_machine import StateMachine
 
-# Papel do worker desta iteração. O fake worker prova a fatia distribuída antes
-# de existir qualquer chamada a LLM.
-FIRST_TASK_ROLE = "fake"
-
-
 @dataclass(frozen=True)
 class CreateRunCommand:
     briefing: str
@@ -60,7 +55,7 @@ class RunService:
         task = AgentTask(
             task_id=uuid.uuid4(),
             run_id=run.run_id,
-            role=FIRST_TASK_ROLE,
+            role=self._settings.initial_task_role,
             state="PENDING",
             attempt=1,
             max_attempts=self._settings.task_max_attempts,

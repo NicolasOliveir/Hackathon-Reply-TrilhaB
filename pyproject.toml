@@ -23,7 +23,10 @@ control-api = [
   "alembic>=1.13",
   "pydantic>=2.7,<3",
   # SDK usado apenas por app/runtime/docker_runtime.py (ORQUESTRADOR §10).
-  "docker>=7.1"
+  "docker>=7.1",
+  # SDK usado apenas por app/model_gateway/anthropic_provider.py. O provedor
+  # codex nao entra aqui: e um binario CLI, nao um pacote Python.
+  "anthropic>=1.0,<2"
 ]
 control-api-dev = [
   "rivexx-autonomous-squad[control-api,contracts]",

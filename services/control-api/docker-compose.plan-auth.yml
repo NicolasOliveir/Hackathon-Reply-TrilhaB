@@ -1,0 +1,38 @@
+# Overlay para autenticacao por PLANO (assinatura) em vez de chave de API.
+#
+# Use junto com o Compose oficial:
+#   docker compose -f infra/compose.yaml \
+#                  -f services/control-api/docker-compose.plan-auth.yml up
+#
+# Nao edita infra/compose.yaml, que e area exclusiva de I1-002.
+#
+# Por que cada linha existe (verificado no SDK anthropic 1.0.0):
+#
+# - o token OAuth do plano tem TTL curto e o SDK renova sozinho
+#   (lib/credentials/_constants.py: ADVISORY_REFRESH_SECONDS = 120);
+# - ao renovar ele GRAVA de volta: mkstemp no diretorio + os.replace
+#   (lib/credentials/_providers.py:470-480). Por isso o mount e :rw e nao :ro —
+#   um mount read-only funciona por alguns minutos e falha na expiracao;
+# - o SDK RECUSA credencial legivel pelo grupo, pedindo chmod 600
+#   (lib/credentials/_providers.py:388). Confira a permissao no host antes;
+# - `read_only: false` e necessario porque o mkstemp acontece dentro do
+#   container. O restante do endurecimento (no-new-privileges, tmpfs) continua.
+#
+# Nenhuma credencial e copiada para a imagem nem entra em variavel de ambiente.
+
+services:
+  control-api:
+    read_only: false
+    environment:
+      MODEL_PROVIDER: "${MODEL_PROVIDER:-anthropic}"
+      MODEL_PROVIDERS: "${MODEL_PROVIDERS:-anthropic}"
+      # Aponta o SDK para o diretorio montado, em vez do HOME do container.
+      ANTHROPIC_CONFIG_DIR: /var/lib/rivexx/anthropic
+      ANTHROPIC_PROFILE: "${ANTHROPIC_PROFILE:-}"
+      # Idem para o CLI do Codex, quando o plano for o do ChatGPT.
+      CODEX_HOME: /var/lib/rivexx/codex
+    volumes:
+      # Perfil de `ant auth login`. Gravavel de proposito: ver acima.
+      - "${ANTHROPIC_CONFIG_HOST:-~/.config/anthropic}:/var/lib/rivexx/anthropic:rw"
+      # Sessao de `codex login`. Comente se nao usar o provedor codex.
+      - "${CODEX_HOME_HOST:-~/.codex}:/var/lib/rivexx/codex:rw"

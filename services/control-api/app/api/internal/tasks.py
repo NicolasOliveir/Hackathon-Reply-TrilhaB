@@ -20,6 +20,7 @@ from sqlalchemy import select
 from ...config import CONTRACT_VERSION, Settings, get_settings
 from ...contracts.v1.fake_worker_output_schema import FakeWorkerOutput
 from ...db import transaction
+from ...model_gateway.gateway import usage_for_task
 from ...orchestration import tokens
 from ...persistence import idempotency
 from ...persistence.event_store import EventDraft, EventStore, utc_now
@@ -93,24 +94,40 @@ async def get_task_context(
 ) -> dict[str, Any]:
     async with transaction() as session:
         task = await _authenticate(session, task_id, authorization)
+        run = (
+            await session.execute(select(Run).where(Run.run_id == task.run_id))
+        ).scalar_one()
         issued = utc_now()
+        receives_briefing = task.role in {"llm", "po"}
+        context_manifest = (
+            [
+                {
+                    "source_id": f"run:{run.run_id}:briefing",
+                    "source_type": "briefing",
+                    "hash": run.briefing_hash,
+                }
+            ]
+            if receives_briefing
+            else []
+        )
+        if task.role == "fake":
+            task_input = {"echo": "first-distributed-slice"}
+        elif receives_briefing:
+            task_input = {"briefing": run.briefing}
+        else:
+            task_input = {}
         return {
             "contract_version": CONTRACT_VERSION,
             "task_id": str(task.task_id),
             "run_id": str(task.run_id),
             "role": task.role,
             "issued_at": issued.isoformat().replace("+00:00", "Z"),
-            "expires_at": (
-                task.locked_at + timedelta(seconds=task.timeout_seconds)
-            )
+            "expires_at": (task.locked_at + timedelta(seconds=task.timeout_seconds))
             .isoformat()
             .replace("+00:00", "Z"),
-            "scopes": tokens.FAKE_WORKER_SCOPES,
-            # Vazio nesta iteração: o fake worker não recebe briefing, story nem
-            # diff. Quando houver PO, Dev e QA, cada papel recebe aqui apenas as
-            # fontes que a matriz de isolamento autoriza, com hash.
-            "context_manifest": [],
-            "input": {"echo": "first-distributed-slice"},
+            "scopes": tokens.scopes_for(task.role),
+            "context_manifest": context_manifest,
+            "input": task_input,
         }
 
 
@@ -187,11 +204,17 @@ async def submit_task_output(
                 ),
             )
 
+        # LLM-01: "uso gera metadados no evento". O agregado de tokens e
+        # latencia da tarefa entra no `meta` do evento de conclusao, que e o
+        # campo que o EventEnvelope ja reserva para isso.
+        usage = await usage_for_task(session, task.task_id)
+
         store = EventStore(session, machine)
         drafts = [
             EventDraft(
                 type=event_type,
-                actor="fake_worker",
+                actor="fake_worker" if task.role == "fake" else task.role,
+                meta=usage.as_event_meta(),
                 task_id=task.task_id,
                 payload={
                     "status": payload.status,

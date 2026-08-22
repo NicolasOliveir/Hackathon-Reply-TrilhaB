@@ -198,6 +198,66 @@ class AgentExecution(Base):
     )
 
 
+class ModelInvocation(Base):
+    """Auditoria de uso de modelo.
+
+    O prompt **não** é persistido em claro: ele pode conter o briefing, e esta
+    tabela é projetada no painel. O hash prova o que foi enviado sem transportar
+    o conteúdo — mesma regra que mantém o briefing fora do event log.
+    """
+
+    __tablename__ = "model_invocations"
+
+    invocation_id: Mapped[uuid.UUID] = _uuid_column(primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = _uuid_column(
+        ForeignKey(f"{CONTROL_SCHEMA}.runs.run_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    task_id: Mapped[uuid.UUID] = _uuid_column(
+        ForeignKey(f"{CONTROL_SCHEMA}.agent_tasks.task_id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    provider: Mapped[str] = mapped_column(String(32), nullable=False)
+    model: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    effort: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    prompt_hash: Mapped[str] = mapped_column(String(71), nullable=False)
+    prompt_chars: Mapped[int] = mapped_column(Integer, nullable=False)
+    response_chars: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    state: Mapped[str] = mapped_column(String(16), nullable=False)
+    input_tokens: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    output_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    cache_read_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    cache_write_tokens: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="0"
+    )
+    latency_ms: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    stop_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    refusal_category: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    route_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+    finished_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    __table_args__ = (
+        CheckConstraint("prompt_chars >= 0", name="prompt_chars_non_negative"),
+        CheckConstraint("input_tokens >= 0", name="input_tokens_non_negative"),
+        CheckConstraint("output_tokens >= 0", name="output_tokens_non_negative"),
+        Index("ix_model_invocations_run_id", "run_id"),
+        Index("ix_model_invocations_task_id", "task_id"),
+    )
+
+
 class IdempotencyKey(Base):
     """Deduplicação de comandos.
 
