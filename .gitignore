@@ -26,3 +26,10 @@ postgres_data/
 .vscode/
 .DS_Store
 Thumbs.db
+
+# ambiente local do control-api
+services/control-api/.venv/
+
+# cache de teste
+.pytest_cache/
+__pycache__/
