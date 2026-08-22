@@ -6,7 +6,7 @@ const EXAMPLE_BRIEFING =
 
 type RunFormProps = {
   onSubmit: (value: string) => void;
-  onError: () => void;
+  onError: (value: string) => void;
 };
 
 export function RunForm({ onSubmit, onError }: RunFormProps) {
@@ -70,7 +70,7 @@ export function RunForm({ onSubmit, onError }: RunFormProps) {
         </div>
         <details className="demo-tools">
           <summary>Opções de demonstração</summary>
-          <button type="button" className="secondary" onClick={onError}>Simular erro de conexão</button>
+          <button type="button" className="secondary" onClick={() => onError(value)}>Simular erro de conexão</button>
         </details>
       </form>
 
