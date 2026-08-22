@@ -21,11 +21,20 @@ O humano entra uma vez, com o briefing. O squad faz o resto.
 
 ## Como rodar
 
-`TODO` — a escrever por último, quando a demo estiver fechada (ver [ESPEC](docs/ESPEC.md) §3).
+Com Docker e Compose v2 disponíveis:
+
+```bash
+./tests/e2e/run.sh
+```
+
+O comando constrói uma instalação isolada, envia o briefing pelo painel em um
+Chromium mobile e valida execução, timeline, retry e isolamento. Para manter o
+ambiente de desenvolvimento rodando, siga [infra/README.md](infra/README.md).
+Em máquinas com GNU Make, `make e2e` é um atalho equivalente.
 
 ## Estado
 
-Arquitetura do MVP definida; ainda não há aplicação nem orquestrador implementados. As cinco ADRs
-estruturais estão fechadas e PO, Dev e QA têm contratos em rascunho avançado. A implementação
-começa pela fatia distribuída mínima do
-[plano do orquestrador](docs/ORQUESTRADOR.md) §13.
+A primeira fatia distribuída funcional do MVP está implementada: painel React,
+API central, PostgreSQL/event log, scheduler e fake worker efêmero. PO, Dev e
+QA reais, integração com modelo e geração da aplicação continuam fora desta
+iteração.

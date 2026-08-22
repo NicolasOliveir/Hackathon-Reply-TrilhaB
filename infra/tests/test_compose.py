@@ -14,6 +14,9 @@ WORKER_DOCKERFILE = (
 CONTROL_API_DOCKERFILE = (
     Path(__file__).resolve().parents[2] / "services" / "control-api" / "Dockerfile"
 )
+CONTROL_PANEL_DOCKERFILE = (
+    Path(__file__).resolve().parents[2] / "apps" / "control-panel" / "Dockerfile"
+)
 
 
 class ComposeTopologyTestCase(unittest.TestCase):
@@ -73,6 +76,24 @@ class ComposeTopologyTestCase(unittest.TestCase):
         dockerfile = CONTROL_API_DOCKERFILE.read_text(encoding="utf-8")
         self.assertIn("app.main:app", dockerfile)
         self.assertIn("alembic upgrade head", dockerfile)
+
+    def test_control_panel_uses_the_real_react_build(self) -> None:
+        panel = self.services["control-panel"]
+        self.assertEqual(panel["build"]["context"], "..")
+        self.assertEqual(
+            panel["build"]["dockerfile"], "apps/control-panel/Dockerfile"
+        )
+        self.assertNotIn("volumes", panel)
+        dockerfile = CONTROL_PANEL_DOCKERFILE.read_text(encoding="utf-8")
+        self.assertIn("npm run build", dockerfile)
+        self.assertIn("/usr/share/nginx/html", dockerfile)
+
+    def test_e2e_harness_is_profiled_and_has_no_control_network(self) -> None:
+        harness = self.services["e2e"]
+        self.assertEqual(harness["profiles"], ["e2e"])
+        self.assertEqual(harness["networks"], ["public_net"])
+        self.assertNotIn("control_net", harness["networks"])
+        self.assertNotIn("/var/run/docker.sock", str(harness))
 
     def test_declares_persistent_runtime_volumes(self) -> None:
         self.assertEqual(

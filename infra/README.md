@@ -2,8 +2,8 @@
 
 O Compose mantém os serviços fixos do MVP e a imagem do `fake-worker`. O
 `control-api` executa a aplicação real, aplica as migrations e usa o Docker do
-host para criar workers efêmeros; o `control-panel` continua no container
-provisório até a montagem E2E da `I1-007`.
+host para criar workers efêmeros; `control-panel` serve o build React real em
+Nginx.
 
 ## Serviços fixos
 
@@ -44,6 +44,12 @@ O mount `/var/run/docker.sock` concede ao `control-api` autoridade equivalente
 à do daemon no host. Esta é uma decisão local explícita do MVP; o mount nunca é
 propagado aos workers. Em uma evolução para AWS, este adapter será substituído
 por uma API de execução gerenciada.
+
+## Prova E2E isolada
+
+Na raiz do repositório, `./tests/e2e/run.sh` constrói e testa toda a fatia em
+um projeto Compose separado. Consulte `tests/README.md` para as evidências
+verificadas.
 
 Para encerrar e preservar os dados do PostgreSQL:
 
