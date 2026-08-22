@@ -23,8 +23,10 @@ services/control-api/
 │   ├── api/runs/               endpoints públicos de execução
 │   ├── api/events/             stream SSE e serialização do EventEnvelope
 │   ├── api/internal/           contexto e callback autenticado dos workers
+│   ├── artifacts/              store local, metadados e integridade SHA-256
+│   ├── workspace/              snapshots e workspaces por revisão
 │   ├── orchestration/          scheduler e ciclo de despacho
-│   └── runtime/                adapters Docker e fake
+│   └── runtime/                adapters Docker/fake e executor de ferramentas
 └── tests/
 ```
 
@@ -148,9 +150,34 @@ despacho inteiro sem daemon.
 | `SCHEDULER_ENABLED` | desligado | sobe o laço junto com a aplicação |
 | `WORKER_MEMORY_LIMIT` / `WORKER_CPU_LIMIT` / `WORKER_PIDS_LIMIT` | `128m` / `0.5` / `64` | limites do container |
 | `INITIAL_TASK_ROLE` | `fake` com `echo`; `po` com provedor real | primeiro worker do run |
+| `ARTIFACT_ROOT` | `/var/lib/rivexx/artifacts` | volume central de artefatos |
+| `WORKSPACE_ROOT` | `/var/lib/rivexx/workspaces` | snapshots e workspaces isolados |
+| `ARTIFACT_MAX_BYTES` | `10485760` | tamanho máximo por upload |
 
 O laço fica **desligado por padrão**: um scheduler que sobe em cada worker do
 Uvicorn criaria vários consumidores competindo pela mesma fila.
+
+## Fundação dos workers reais (I2-003)
+
+`ArtifactStore` persiste bytes, metadados e SHA-256 no volume central. Um retry
+idêntico devolve a mesma referência; conteúdo diferente no mesmo path é
+conflito. Workers publicam e leem artefatos somente pelos endpoints internos.
+
+`WorkspaceManager` cria um snapshot imutável do scaffold e uma cópia por
+`run/task/revision`. A política de mounts é explícita: Dev recebe `/workspace`
+RW; QA recebe o código em `/workspace` RO e produz testes em `/tests` RW.
+
+`ToolExecutor` recebe `argv`, cwd virtual, perfil e timeout. Ele executa sem
+shell, traduz somente `/workspace` e `/tests`, aplica allowlist de executáveis e
+limita a saída capturada. O resultado contém exit code, duração, timeout e a
+evidência textual; o executor não decide aceite ou reprovação.
+
+APIs internas disponíveis ao worker autenticado:
+
+- `POST /internal/v1/tasks/{task_id}/heartbeat` renova a lease;
+- `POST /internal/v1/tasks/{task_id}/artifacts` publica evidência;
+- `GET /internal/v1/tasks/{task_id}/artifacts/{artifact_id}` lê artefato do run;
+- `POST /internal/v1/tasks/{task_id}/failure` reporta falha para a API encerrar.
 
 ## Gateway de modelo (I1-008)
 

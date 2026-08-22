@@ -72,6 +72,15 @@ class DockerContainerRuntime:
                 nano_cpus=int(spec.limits.cpus * 1_000_000_000),
                 pids_limit=spec.limits.pids,
                 network_disabled=False,
+                volumes={
+                    str(mount.source): {
+                        "bind": mount.target,
+                        "mode": "ro" if mount.read_only else "rw",
+                    }
+                    for mount in spec.mounts
+                },
+                user=spec.user,
+                working_dir=spec.working_dir,
             )
 
         container = await asyncio.to_thread(_create)
