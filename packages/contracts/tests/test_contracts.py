@@ -187,6 +187,8 @@ class ContractTestCase(unittest.TestCase):
         self.assertEqual(len(keys), len(set(keys)))
         self.assertIn({"from": "TEST_PLAN_READY", "event": "STORY_REJECTED", "to": "CHANGES_REQUESTED"}, transitions)
         self.assertIn({"from": "CHANGES_REQUESTED", "event": "CODE_REDELIVERED", "to": "DELIVERY_READY"}, transitions)
+        self.assertIn({"from": "BRIEFING_READY", "event": "STORY_FROZEN", "to": "BACKLOG_FROZEN"}, transitions)
+        self.assertIn({"from": "BACKLOG_FROZEN", "event": "PO_COMPLETED", "to": "STORY_READY"}, transitions)
 
 
 if __name__ == "__main__":

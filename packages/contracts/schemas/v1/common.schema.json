@@ -58,6 +58,7 @@
         "AGENT_STARTED",
         "FAKE_WORKER_COMPLETED",
         "STORY_FROZEN",
+        "PO_COMPLETED",
         "DEV_TASK_PLAN_CREATED",
         "ADR_RECORDED",
         "TOOL_EXECUTED",

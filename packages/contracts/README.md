@@ -59,7 +59,8 @@ Os handoffs reais usam os seguintes documentos imutáveis:
 O servidor deve validar o JSON Schema e depois as invariantes de `worker_contracts.py`. O hash é
 SHA-256 do JSON UTF-8 canônico (`sort_keys`, sem espaços e sem NaN), prefixado por `sha256:`. Só
 stories `ready` geram handoff PO -> Dev. IDs, dependências, cobertura e ordem dos critérios são
-validados antes de emitir `STORY_FROZEN`.
+validados antes de emitir `STORY_FROZEN`. Depois que todos os handoffs foram persistidos, a API
+emite `PO_COMPLETED`; somente então a máquina libera `STORY_READY` para o Dev.
 
 `state-machine/worker-flow-v1.json` congela o caminho PO -> Dev -> QA -> runner, incluindo a volta
 determinística de `STORY_REJECTED` para `CODE_REDELIVERED`. Eventos grandes carregam apenas refs

@@ -102,6 +102,12 @@
       "schema": "https://reply.local/contracts/v1/runner-result.schema.json",
       "document": "invalid/runner-result-agent-verdict.json",
       "valid": false
+    },
+    {
+      "name": "PO completed event",
+      "schema": "https://reply.local/contracts/v1/event-envelope.schema.json",
+      "document": "valid/po-completed-event.json",
+      "valid": true
     }
   ]
 }
