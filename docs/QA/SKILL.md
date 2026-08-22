@@ -5,70 +5,77 @@ description: Prepara, executa e registra testes de uma story congelada usando se
 
 # Skills: Ciclo de Trabalho do QA Agent
 
-Leia [persona.md](persona.md) antes de agir. A story congelada é o único
-contrato de produto do QA. Consulte a ESPEC e os documentos do Dev apenas para
-entender o protocolo e a implementação; não reconstrua o briefing nem altere
-os critérios recebidos.
+Leia [persona.md](persona.md) e o [contrato do plano de testes](test-contract.md)
+antes de agir. A story congelada é o único contrato de produto do QA. Consulte
+a ESPEC e os documentos do Dev apenas para entender o protocolo e a
+implementação; não reconstrua o briefing nem altere os critérios recebidos.
 
 ## Habilidade 1: Preparação antecipada de infraestrutura e testes (Fase 1)
 
-**Gatilho:** recebimento de `STORY_FROZEN` ou `STORY_ASSIGNED` com `story_id`,
-`frozen_hash` e critérios de aceite.
+**Gatilho:** tarefa de QA recebida da API, contendo `STORY_FROZEN`,
+`CODE_DELIVERED` ou `CODE_REDELIVERED`, `implementation_revision` e o manifesto
+de contexto autorizado.
 
-**Ação:** validar o envelope e criar um plano de testes em que cada critério
-canônico esteja associado a um caso observável, uma evidência e um método de
-execução. Preparar, quando a arquitetura aprovada existir, a infraestrutura no
-diretório `/tests/`:
+**Ação:** validar o contexto e criar a configuração JSON
+`tests/config/<story-id>.v<version>.r<revision>.json`. Cada critério canônico
+deve estar associado a um item na mesma ordem, casos observáveis, evidências e
+método de execução. Registrar o arquivo como artefato pela API e submeter a
+saída `TEST_PLAN_CREATED`; o worker não grava no banco. Preparar, quando a
+arquitetura aprovada existir, a infraestrutura no diretório `/tests/`:
 
 1. `tests/docker-compose.yml`: estrutura de contêineres isolando Backend
    (Python) e Frontend (React), somente se essa for a stack efetivamente
    aprovada na ESPEC; manter esses caminhos alinhados à estrutura decidida do repositório.
-2. `tests/test_suite.py`: esqueleto de testes automatizados que mapeia os
-   critérios da story. Os três cenários-base Rivexx — Registro Ágil, Causa Raiz
-   e Rastreabilidade — servem como referência em
-   [acceptance.md](acceptance.md), não substituem os critérios emitidos pelo PO.
+2. `tests/config/<story-id>.v<version>.r<revision>.json`: arquivo de
+   configuração serializável consumido pelo runner. Seu formato está em
+   [test-contract.md](test-contract.md); não substituir esse arquivo por código
+   de configuração em outra linguagem. Os três cenários-base Rivexx em
+   [acceptance.md](acceptance.md) são referência, não critérios adicionais.
 
-Emita `TEST_PLAN_CREATED` com a correlação da story e preserve seu hash. Se o
-contrato estiver incompleto ou um critério não for observável, emita
-`NEEDS_HUMAN` em vez de inventar um teste.
+Submeta `TEST_PLAN_CREATED` com a correlação da story e preserve o hash que a
+API devolver. Se o contrato estiver incompleto ou um critério não for
+observável, submeta `NEEDS_HUMAN` em vez de inventar um teste.
 
 ## Habilidade 2: Validação e sincronismo de dependências (Fase 2)
 
-**Gatilho:** recebimento de `CODE_DELIVERED` ou de uma entrega de correção do
-Dev Agent para a mesma story e hash.
+**Gatilho:** após a API validar o plano JSON e disponibilizar os testes
+materializados para o runner.
 
 **Ação de infraestrutura:** inspecionar os manifestos de dependências da
 arquitetura aprovada — por exemplo, `/backend/requirements.txt` e
 `/frontend/package.json`. Quando uma dependência tiver mudado, fazer rebuild
-limpo das imagens antes de testar e registrar essa condição e os comandos
-executados.
+limpo obrigatório no campo `environment` da configuração JSON e registrar os
+manifestos afetados. O runner executa o rebuild e registra os comandos e seus
+resultados.
 
-**Ação de teste:** iniciar os contêineres, executar a suíte contra a aplicação
-e emitir `TEST_EXECUTED` com saída, código de saída, evidências e o critério
-associado. Não declare que um comando passou se ele não foi executado. Rode
-somente os testes necessários à story e as regressões afetadas, preservando
-falhas preexistentes fora do escopo como achados separados.
+**Ação de teste:** fornecer ao runner a configuração JSON e os testes
+materializados. O runner inicia o ambiente e emite `TEST_EXECUTED` com saída,
+código de saída, evidências e critério associado. O QA não pode alegar que um
+comando passou sem a evidência do runner. Preserve falhas preexistentes fora do
+escopo como achados separados.
 
 ## Habilidade 3: Protocolo de comunicação e feedback loop
 
 **Identificação de falhas:** mapear cada log de erro diretamente ao critério de
 aceite violado. Para cada finding, informar `story_id`, `story_hash`, revisão de
 implementação, ID do critério, severidade, esperado, observado, reprodução e
-evidência. Emitir `STORY_REJECTED` no formato consumido por
-[`../dev/qa-remediation.md`](../dev/qa-remediation.md).
+evidência. O QA submete os findings; a API deriva `STORY_REJECTED` no formato
+consumido por [`../dev/qa-remediation.md`](../dev/qa-remediation.md).
 
 **Controle de tentativas:** respeitar o limite configurado pelo orquestrador
 para correções do Dev. Se ele for atingido, emitir `NEEDS_HUMAN` com
 `RETRY_LIMIT_REACHED`, sem criar uma nova regra de aceite.
 
-**Persistência:** após a execução integral, gerar o relatório de evidências como
-projeção do event log e salvá-lo na área de testes. O resultado final é do
-runner: `STORY_ACCEPTED` somente com todas as execuções requeridas aprovadas;
-caso contrário, `STORY_REJECTED` ou um bloqueio explícito.
+**Persistência:** após a execução integral, a API projeta o relatório de
+evidências do event log. O runner produz `TEST_EXECUTED`; a API deriva
+`STORY_ACCEPTED` somente quando todas as execuções requeridas aprovam, ou
+`STORY_REJECTED`/bloqueio explícito nos demais casos.
 
 ## Verificação final
 
 - [ ] story, hash congelado e revisão de implementação correspondem à entrada;
+- [ ] a configuração JSON preserva IDs, texto e ordem dos critérios recebidos;
+- [ ] o hash do plano retornado pela API corresponde ao artefato submetido;
 - [ ] cada critério foi avaliado uma única vez, na ordem recebida, sem paráfrase;
 - [ ] todo resultado possui comando ou reprodução e evidência localizável;
 - [ ] mudanças de dependência causaram rebuild antes da execução;
