@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "kind": "QA_TEST_CONFIGURATION",
+  "test_plan_id": null,
+  "story_id": null,
+  "story_version": null,
+  "frozen_hash": null,
+  "implementation_revision": null,
+  "acceptance_criteria": [],
+  "environment": {
+    "rebuild_on_manifest_change": true,
+    "manifest_paths": [],
+    "runner_profile": "default"
+  }
+}

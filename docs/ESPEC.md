@@ -384,7 +384,7 @@ consecutivas do mesmo finding sem evidência nova, emite `NEEDS_HUMAN`.
 ### 6.3 QA Agent — `RASCUNHO AVANÇADO · ARTEFATOS CRIADOS`
 
 **Artefatos operacionais:** [persona](QA/persona.md) · [ciclo de validação](QA/SKILL.md) ·
-[referência de aceite](QA/acceptance.md).
+[contrato do plano de testes](QA/test-contract.md) · [referência de aceite](QA/acceptance.md).
 
 **Contrato em uma frase:** converte critérios congelados em casos executáveis, coleta evidências e
 devolve findings técnicos sem ler briefing, alterar requisito ou declarar aprovação por opinião.
@@ -395,8 +395,9 @@ cada resultado ao critério literal e produzir feedback reproduzível ao Dev.
 **Limites duros:** não lê briefing; não reescreve critério; não aprova por julgamento LLM; não
 oculta falha ou verificação impedida. ADR-004 reserva o resultado final ao runner.
 
-**Schema de saída:** `TEST_PLAN_CREATED`, `TEST_EXECUTED`, `STORY_REJECTED` e `NEEDS_HUMAN`
-estruturados conforme o event log; detalhamento final entra na implementação de `AG-QA-01`.
+**Schema de saída:** o QA submete `TEST_PLAN_CREATED`, artefatos JSON e `NEEDS_HUMAN` conforme
+o [contrato do plano de testes](QA/test-contract.md). O runner submete `TEST_EXECUTED`; a API
+deriva `STORY_REJECTED` ou `STORY_ACCEPTED` conforme o event log.
 
 **Política de reprovação:** máximo de três reprovações consecutivas do mesmo finding sem nova
 causa ou evidência; depois disso, `NEEDS_HUMAN` com `RETRY_LIMIT_REACHED`.
