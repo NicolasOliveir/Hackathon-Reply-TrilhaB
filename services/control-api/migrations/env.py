@@ -13,7 +13,7 @@ from logging.config import fileConfig
 from pathlib import Path
 
 from alembic import context
-from sqlalchemy import pool
+from sqlalchemy import pool, text
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 SERVICE_ROOT = Path(__file__).resolve().parents[1]
@@ -70,7 +70,13 @@ async def run_migrations_online() -> None:
     engine = async_engine_from_config(
         section, prefix="sqlalchemy.", poolclass=pool.NullPool
     )
-    async with engine.connect() as connection:
+    async with engine.begin() as connection:
+        # Alembic cria a tabela de versão antes de executar a primeira
+        # migration. Como ela vive no schema `control`, o schema precisa
+        # existir primeiro e participar da mesma transação externa.
+        await connection.execute(
+            text(f"CREATE SCHEMA IF NOT EXISTS {CONTROL_SCHEMA}")
+        )
         await connection.run_sync(_do_run_migrations)
     await engine.dispose()
 
